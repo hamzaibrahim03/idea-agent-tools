@@ -1,34 +1,25 @@
 import { useState } from 'react';
-
 export default function JsonFormatter() {
   const [input, setInput] = useState('');
   const [indent, setIndent] = useState(2);
-  const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-
-  const formatted = (() => {
-    if (!input.trim()) return '';
+  let formatted = '';
+  let error = '';
+  if (input.trim()) {
     try {
-      const parsed = JSON.parse(input);
-      setError('');
-      return JSON.stringify(parsed, null, indent);
+      formatted = JSON.stringify(JSON.parse(input), null, indent);
     } catch (e) {
-      setError(e.message);
-      return '';
+      error = e.message;
     }
-  })();
-
+  }
   function handleMinify() {
     if (!input.trim()) return;
     try {
       const parsed = JSON.parse(input);
       setInput(JSON.stringify(parsed));
-      setError('');
-    } catch (e) {
-      setError(e.message);
+    } catch {
     }
   }
-
   async function handleCopy() {
     if (!formatted) return;
     try {
@@ -36,12 +27,8 @@ export default function JsonFormatter() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard API can fail in insecure contexts / permission denial -
-      // fail silently rather than showing a confusing error for a
-      // non-critical convenience action.
     }
   }
-
   return (
     <div className="tool-page">
       <h1>JSON Formatter &amp; Validator</h1>
@@ -49,7 +36,6 @@ export default function JsonFormatter() {
         Paste JSON to format, validate, and minify it. Runs entirely in your browser - nothing is
         sent to a server.
       </p>
-
       <div className="tool-controls">
         <label>
           Indent:
@@ -69,7 +55,6 @@ export default function JsonFormatter() {
           Clear
         </button>
       </div>
-
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="json-input">Input</label>
@@ -88,7 +73,6 @@ export default function JsonFormatter() {
           <textarea id="json-output" value={formatted} readOnly spellCheck={false} placeholder="Formatted JSON will appear here" />
         </div>
       </div>
-
       {error && (
         <div className="tool-error">
           <strong>Parse error:</strong> {error}

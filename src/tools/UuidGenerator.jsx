@@ -1,44 +1,31 @@
 import { useState } from 'react';
-
 export default function UuidGenerator() {
   const [count, setCount] = useState(5);
   const [uppercase, setUppercase] = useState(false);
   const [uuids, setUuids] = useState(() => generateMany(5));
   const [copiedAll, setCopiedAll] = useState(false);
-
   function generateMany(n) {
-    // crypto.randomUUID is the real, cryptographically-random UUIDv4
-    // generator built into every modern browser - no need for a homegrown
-    // Math.random()-based implementation, which wouldn't be uniformly
-    // random or truly collision-resistant.
     return Array.from({ length: n }, () => crypto.randomUUID());
   }
-
   function handleGenerate() {
     setUuids(generateMany(Math.min(Math.max(count, 1), 100)));
     setCopiedAll(false);
   }
-
   const displayed = uuids.map((u) => (uppercase ? u.toUpperCase() : u));
-
   async function copyAll() {
     try {
       await navigator.clipboard.writeText(displayed.join('\n'));
       setCopiedAll(true);
       setTimeout(() => setCopiedAll(false), 1500);
     } catch {
-      // Non-critical convenience action - fail silently on clipboard denial.
     }
   }
-
   async function copyOne(u) {
     try {
       await navigator.clipboard.writeText(u);
     } catch {
-      // Non-critical.
     }
   }
-
   return (
     <div className="tool-page">
       <h1>UUID Generator</h1>
@@ -46,7 +33,6 @@ export default function UuidGenerator() {
         Generate random UUIDs (version 4), using your browser's built-in cryptographically-random
         generator - not a fake lookalike.
       </p>
-
       <div className="tool-controls">
         <label>
           Count:
@@ -68,7 +54,6 @@ export default function UuidGenerator() {
           {copiedAll ? 'Copied!' : 'Copy all'}
         </button>
       </div>
-
       <ul className="uuid-list">
         {displayed.map((u, i) => (
           <li key={i}>
