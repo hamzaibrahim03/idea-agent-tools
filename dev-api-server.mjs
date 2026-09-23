@@ -12,7 +12,6 @@ try {
 }
 
 const toolsDispatcher = (await import('./api/tools/[slug].js')).default;
-const agentsDispatcher = (await import('./api/agents/[agent].js')).default;
 const generatePromptHandler = (await import('./api/generate-prompt.js')).default;
 
 const PORT = process.env.DEV_API_PORT || 3001;
@@ -28,9 +27,6 @@ const server = createServer(async (req, res) => {
   } else if (segments[0] === 'api' && segments[1] === 'tools' && segments[2]) {
     handler = toolsDispatcher;
     query = { slug: segments[2] };
-  } else if (segments[0] === 'api' && segments[1] === 'agents' && segments[2]) {
-    handler = agentsDispatcher;
-    query = { agent: segments[2] };
   }
 
   if (!handler) {
@@ -65,5 +61,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`[dev-api] Local API server running at http://localhost:${PORT} (dynamic dispatch: /api/tools/*, /api/agents/*, /api/generate-prompt)`);
+  console.log(`[dev-api] Local API server running at http://localhost:${PORT} (dynamic dispatch: /api/tools/*, /api/generate-prompt)`);
 });

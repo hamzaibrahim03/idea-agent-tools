@@ -4,9 +4,6 @@
     "api/generate-prompt.js": {
       "maxDuration": 30
     },
-    "api/agents/*.js": {
-      "maxDuration": 30
-    },
     "api/tools/*.js": {
       "maxDuration": 30
     }

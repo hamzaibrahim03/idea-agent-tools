@@ -20,9 +20,7 @@ export const CATEGORIES = [
   { value: 'restaurant', label: 'Restaurant / Food Business' },
   { value: 'travel', label: 'Travel' },
   { value: 'design', label: 'Design' },
-  { value: 'documents', label: 'Document Tools' },
-  { value: 'vehicle', label: 'Vehicle / Automotive' },
-  { value: 'energy', label: 'Energy / Solar' }
+  { value: 'documents', label: 'Document Tools' }
 ];
 import JsonFormatter from './tools/JsonFormatter.jsx';
 import RegexTester from './tools/RegexTester.jsx';
