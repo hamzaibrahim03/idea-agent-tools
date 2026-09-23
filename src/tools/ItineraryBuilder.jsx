@@ -1,23 +1,39 @@
-import { useState } from 'react';
-let nextId = 1;
+import { useEffect, useRef, useState } from 'react';
 export default function ItineraryBuilder() {
   const [entries, setEntries] = useState([]);
   const [day, setDay] = useState(1);
   const [time, setTime] = useState('09:00');
   const [description, setDescription] = useState('');
+  const [grouped, setGrouped] = useState({});
+  const [fetchError, setFetchError] = useState('');
+  const nextId = useRef(1);
   function addEntry() {
     if (!description.trim()) return;
-    setEntries((e) => [...e, { id: nextId++, day: parseInt(day, 10) || 1, time, description: description.trim() }]);
+    setEntries((e) => [...e, { id: nextId.current++, day: parseInt(day, 10) || 1, time, description: description.trim() }]);
     setDescription('');
   }
   function removeEntry(id) {
     setEntries((e) => e.filter((entry) => entry.id !== id));
   }
-  const sorted = [...entries].sort((a, b) => (a.day - b.day) || a.time.localeCompare(b.time));
-  const grouped = sorted.reduce((acc, entry) => {
-    (acc[entry.day] ||= []).push(entry);
-    return acc;
-  }, {});
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setFetchError('');
+      fetch('/api/tools/itinerary-builder', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { entries } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setFetchError(data.error);
+          else setGrouped(data.grouped || {});
+        })
+        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [entries]);
   return (
     <div className="tool-page">
       <h1>Itinerary Builder</h1>
@@ -25,8 +41,8 @@ export default function ItineraryBuilder() {
         Add your own day-by-day itinerary entries - day number, time, and an activity or location
         you've chosen yourself - and get a clean day-by-day itinerary view sorted by day and time.
         This tool only organizes entries you type in; it does not suggest or look up locations.
-        Runs entirely in your browser.
       </p>
+      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <label>
           Day:

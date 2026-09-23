@@ -1,52 +1,36 @@
-import { useState } from 'react';
-const TRIP_TYPES = {
-  beach: {
-    label: 'Beach',
-    items: [
-      'Swimsuit', 'Sunscreen', 'Sunglasses', 'Beach towel', 'Flip-flops', 'Hat',
-      'After-sun lotion', 'Beach bag', 'Light cover-up', 'Waterproof phone pouch'
-    ]
-  },
-  business: {
-    label: 'Business',
-    items: [
-      'Suit / business attire', 'Dress shoes', 'Laptop and charger', 'Business cards',
-      'Notebook and pen', 'Phone charger', 'Portable battery pack', 'Travel iron / steamer',
-      'Dress belt', 'Toiletry bag'
-    ]
-  },
-  camping: {
-    label: 'Camping',
-    items: [
-      'Tent', 'Sleeping bag', 'Sleeping pad', 'Headlamp / flashlight', 'Camp stove',
-      'Water filter or purification tablets', 'First aid kit', 'Multi-tool / knife',
-      'Insect repellent', 'Extra socks', 'Fire starter'
-    ]
-  },
-  winter: {
-    label: 'Winter',
-    items: [
-      'Insulated jacket', 'Thermal base layers', 'Gloves', 'Winter hat', 'Scarf',
-      'Waterproof boots', 'Wool socks', 'Hand warmers', 'Lip balm', 'Moisturizer'
-    ]
-  },
-  general: {
-    label: 'General',
-    items: [
-      'Passport / ID', 'Phone charger', 'Toothbrush and toothpaste', 'Underwear and socks',
-      'Comfortable shoes', 'Medications', 'Travel adapter', 'Reusable water bottle',
-      'Basic first aid items', 'Laundry bag'
-    ]
-  }
+import { useEffect, useState } from 'react';
+const TRIP_TYPE_LABELS = {
+  beach: 'Beach',
+  business: 'Business',
+  camping: 'Camping',
+  winter: 'Winter',
+  general: 'General'
 };
-const PER_DAY_ITEM = 'Change of clothes';
 export default function PackingListGenerator() {
   const [tripType, setTripType] = useState('beach');
   const [days, setDays] = useState(5);
   const [checked, setChecked] = useState({});
-  const daysNum = Math.max(1, parseInt(days, 10) || 1);
-  const baseItems = TRIP_TYPES[tripType].items;
-  const items = [...baseItems, `${PER_DAY_ITEM} (${daysNum}x for ${daysNum}-day trip)`];
+  const [items, setItems] = useState([]);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/packing-list-generator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { tripType, days } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setItems(data.items || []);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [tripType, days]);
   function toggle(item) {
     setChecked((c) => ({ ...c, [item]: !c[item] }));
   }
@@ -62,8 +46,8 @@ export default function PackingListGenerator() {
         <label>
           Trip type:
           <select value={tripType} onChange={(e) => setTripType(e.target.value)}>
-            {Object.entries(TRIP_TYPES).map(([key, t]) => (
-              <option key={key} value={key}>{t.label}</option>
+            {Object.entries(TRIP_TYPE_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
             ))}
           </select>
         </label>
@@ -72,19 +56,22 @@ export default function PackingListGenerator() {
           <input type="number" min="1" value={days} onChange={(e) => setDays(e.target.value)} style={{ width: '70px' }} />
         </label>
       </div>
-      <div className="tool-panel">
-        <label>
-          Packing checklist ({checkedCount}/{items.length} packed)
-        </label>
-        {items.map((item) => (
-          <label key={item} className="checkbox-label" style={{ padding: '4px 0' }}>
-            <input type="checkbox" checked={!!checked[item]} onChange={() => toggle(item)} />
-            <span style={{ textDecoration: checked[item] ? 'line-through' : 'none', opacity: checked[item] ? 0.5 : 1 }}>
-              {item}
-            </span>
+      {error && <div className="agent-error">{error}</div>}
+      {!error && (
+        <div className="tool-panel">
+          <label>
+            Packing checklist ({checkedCount}/{items.length} packed)
           </label>
-        ))}
-      </div>
+          {items.map((item) => (
+            <label key={item} className="checkbox-label" style={{ padding: '4px 0' }}>
+              <input type="checkbox" checked={!!checked[item]} onChange={() => toggle(item)} />
+              <span style={{ textDecoration: checked[item] ? 'line-through' : 'none', opacity: checked[item] ? 0.5 : 1 }}>
+                {item}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 const DATA_TYPES = [
   { key: 'email', label: 'Email address' },
   { key: 'name', label: 'Name' },
@@ -11,55 +13,28 @@ export default function PrivacyPolicyGenerator() {
   const [contactEmail, setContactEmail] = useState('');
   const [collected, setCollected] = useState({ email: true, name: true, cookies: true, analytics: false, payment: false });
   const [copied, setCopied] = useState(false);
+  const ai = useAiGenerate('privacy-policy', 'Privacy Policy Generator');
+  const title = ai.result?.title || '';
+  const sections = ai.result?.sections || [];
   function toggle(key) {
     setCollected((prev) => ({ ...prev, [key]: !prev[key] }));
   }
-  function buildPolicy() {
-    const name = businessName || '[Business Name]';
-    const email = contactEmail || '[contact email]';
-    const selectedTypes = DATA_TYPES.filter((t) => collected[t.key]).map((t) => t.label);
-    return [
-      `PRIVACY POLICY FOR ${name.toUpperCase()}`,
-      '',
-      '1. Introduction',
-      `This Privacy Policy explains how ${name} collects, uses, and protects your information when you use our website/service.`,
-      '',
-      '2. Information We Collect',
-      selectedTypes.length
-        ? `We may collect the following types of information: ${selectedTypes.join(', ')}.`
-        : 'Describe the categories of personal information you collect here.',
-      '',
-      '3. How We Use Your Information',
-      'We use collected information to provide and improve our service, communicate with you, process transactions (if applicable), and comply with legal obligations.',
-      '',
-      '4. Cookies',
-      collected.cookies
-        ? 'We use cookies to remember your preferences, keep you signed in, and understand how our service is used. You can control cookies through your browser settings.'
-        : 'Describe your cookie usage here, if any.',
-      '',
-      '5. Data Sharing',
-      'We do not sell your personal information. We may share data with service providers who help us operate our service, or when required by law.',
-      '',
-      '6. Data Security',
-      'We take reasonable measures to protect your information, but no method of transmission or storage is 100% secure.',
-      '',
-      '7. Your Rights',
-      'Depending on your location, you may have rights to access, correct, or delete your personal information. Contact us to exercise these rights.',
-      '',
-      '8. Data Retention',
-      'We retain personal information only as long as necessary for the purposes described in this policy or as required by law.',
-      '',
-      '9. Changes to This Policy',
-      'We may update this policy from time to time. Continued use of our service after changes constitutes acceptance.',
-      '',
-      '10. Contact Us',
-      `Questions about this policy can be sent to ${email}.`
-    ].join('\n');
+  async function handleGenerate() {
+    const selectedTypes = DATA_TYPES.filter((t) => collected[t.key]).map((t) => t.label).join(', ');
+    await ai.generate({ businessName, contactEmail, dataCollected: selectedTypes });
   }
-  const policy = buildPolicy();
+  function assembleText() {
+    const lines = [title, ''];
+    sections.forEach((s, i) => {
+      lines.push(`${i + 1}. ${s.heading}`);
+      lines.push(s.content);
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(policy);
+      await navigator.clipboard.writeText(assembleText());
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -69,8 +44,9 @@ export default function PrivacyPolicyGenerator() {
     <div className="tool-page">
       <h1>Privacy Policy Generator</h1>
       <p className="tool-description">
-        Fill in your business details and select the types of data you collect to assemble a
-        starting privacy policy template with common sections. Runs entirely in your browser.
+        Fill in your business details and select the types of data you collect, then click "Generate
+        with AI" for a genuinely AI-written starter privacy policy with common sections - free, no
+        account needed (rate-limited to keep it free for everyone).
       </p>
       <div className="tool-error">
         <strong>Not legal advice:</strong> This is a starting template only. It must be reviewed
@@ -97,14 +73,36 @@ export default function PrivacyPolicyGenerator() {
         ))}
       </div>
       <div className="tool-controls">
-        <button type="button" onClick={handleCopy}>
-          {copied ? 'Copied!' : 'Copy policy'}
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || !businessName.trim()}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={handleCopy} disabled={!sections.length}>
+          {copied ? 'Copied!' : 'Copy all'}
+        </button>
+        <button type="button" onClick={() => window.print()} disabled={!sections.length}>
+          Print
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
         </button>
       </div>
-      <div className="tool-panel">
-        <label>Generated privacy policy</label>
-        <textarea readOnly value={policy} style={{ minHeight: 380 }} />
-      </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
+      {sections.length > 0 && (
+        <div className="tool-panel">
+          {title && <h2>{title}</h2>}
+          {sections.map((s, i) => (
+            <div key={i} style={{ marginBottom: '16px' }}>
+              <h3>
+                {i + 1}. {s.heading}
+              </h3>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{s.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

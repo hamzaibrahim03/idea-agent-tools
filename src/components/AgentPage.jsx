@@ -20,7 +20,7 @@ export default function AgentPage() {
   return (
     <>
       <Seo title={agent.name} description={agent.seoDescription || agent.description} path={`/agents/${agent.slug}`} />
-      <AgentComponent />
+      <AgentComponent type={agent.agentKey} />
       <AdSlot slot="0000000001" style={{ marginTop: 32 }} />
     </>
   );

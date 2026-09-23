@@ -1,43 +1,32 @@
-import { useState } from 'react';
-function pxToViewportUnits(px, vw, vh) {
-  const vwValue = (px / vw) * 100;
-  const vhValue = (px / vh) * 100;
-  return {
-    vw: vwValue,
-    vh: vhValue,
-    vmin: Math.min(vwValue, vhValue),
-    vmax: Math.max(vwValue, vhValue),
-  };
-}
-function viewportUnitToPx(value, unit, vw, vh) {
-  switch (unit) {
-    case 'vw':
-      return (value / 100) * vw;
-    case 'vh':
-      return (value / 100) * vh;
-    case 'vmin':
-      return (value / 100) * Math.min(vw, vh);
-    case 'vmax':
-      return (value / 100) * Math.max(vw, vh);
-    default:
-      return null;
-  }
-}
+import { useEffect, useState } from 'react';
 export default function ViewportUnitsCalculator() {
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [viewportHeight, setViewportHeight] = useState(900);
   const [pxValue, setPxValue] = useState(24);
   const [reverseValue, setReverseValue] = useState(2);
   const [reverseUnit, setReverseUnit] = useState('vw');
-  const vwNum = Number(viewportWidth);
-  const vhNum = Number(viewportHeight);
-  const viewportValid = Number.isFinite(vwNum) && Number.isFinite(vhNum) && vwNum > 0 && vhNum > 0;
-  const pxNum = Number(pxValue);
-  const forwardValid = viewportValid && Number.isFinite(pxNum);
-  const forwardResult = forwardValid ? pxToViewportUnits(pxNum, vwNum, vhNum) : null;
-  const reverseNum = Number(reverseValue);
-  const reverseValid = viewportValid && Number.isFinite(reverseNum);
-  const reversePx = reverseValid ? viewportUnitToPx(reverseNum, reverseUnit, vwNum, vhNum) : null;
+  const [result, setResult] = useState({ viewportValid: false, forwardResult: null, reversePx: null });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/viewport-units-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { viewportWidth, viewportHeight, pxValue, reverseValue, reverseUnit } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [viewportWidth, viewportHeight, pxValue, reverseValue, reverseUnit]);
+  const { viewportValid, forwardResult, reversePx } = result;
   return (
     <div className="tool-page">
       <h1>Viewport Units Calculator</h1>
@@ -46,6 +35,7 @@ export default function ViewportUnitsCalculator() {
         viewport size, or convert a viewport unit value back to pixels. Runs entirely in your
         browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Reference viewport width (px):

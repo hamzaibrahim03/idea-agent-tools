@@ -1,48 +1,8 @@
 import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 function emptySubject() {
   return { name: '', weight: '1' };
-}
-function buildPlan(subjects, days) {
-  const totalWeight = subjects.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
-  if (totalWeight <= 0 || days <= 0) return [];
-  const allocations = subjects.map((s) => {
-    const weight = Number(s.weight) || 0;
-    return { name: s.name, exact: (weight / totalWeight) * days };
-  });
-  let allocated = allocations.map((a) => ({ name: a.name, days: Math.floor(a.exact), remainder: a.exact - Math.floor(a.exact) }));
-  let assignedTotal = allocated.reduce((sum, a) => sum + a.days, 0);
-  let remaining = days - assignedTotal;
-  const byRemainder = [...allocated].sort((a, b) => b.remainder - a.remainder);
-  for (let i = 0; i < remaining; i++) {
-    byRemainder[i % byRemainder.length].days += 1;
-  }
-  const pool = [];
-  allocated.forEach((a) => {
-    for (let i = 0; i < a.days; i++) pool.push(a.name);
-  });
-  const schedule = Array.from({ length: days }, () => []);
-  let dayIndex = 0;
-  const bucket = {};
-  allocated.forEach((a) => {
-    bucket[a.name] = a.days;
-  });
-  const names = allocated.map((a) => a.name).filter((n) => bucket[n] > 0);
-  let cursor = 0;
-  let guard = 0;
-  while (pool.length > 0 && guard < days * subjects.length * 4) {
-    guard += 1;
-    const name = names[cursor % names.length];
-    cursor += 1;
-    if (bucket[name] > 0) {
-      schedule[dayIndex % days].push(name);
-      bucket[name] -= 1;
-      const idx = pool.indexOf(name);
-      if (idx !== -1) pool.splice(idx, 1);
-      dayIndex += 1;
-    }
-    if (names.every((n) => bucket[n] <= 0)) break;
-  }
-  return schedule;
 }
 export default function StudyPlanGenerator() {
   const [subjects, setSubjects] = useState([
@@ -50,19 +10,26 @@ export default function StudyPlanGenerator() {
     { name: 'History', weight: '1' }
   ]);
   const [days, setDays] = useState('7');
+  const ai = useAiGenerate('study-plan', 'Study Plan Generator');
+  const plan = ai.result;
   function updateSubject(i, field, value) {
     setSubjects((prev) => prev.map((s, idx) => (idx === i ? { ...s, [field]: value } : s)));
   }
   const validSubjects = subjects.filter((s) => s.name.trim());
   const daysNum = Math.max(0, Math.floor(Number(days) || 0));
-  const plan = buildPlan(validSubjects, daysNum);
+  async function handleGenerate() {
+    const subjectsSummary = validSubjects
+      .map((s) => `${s.name} (priority weight ${s.weight || 1})`)
+      .join(', ');
+    await ai.generate({ subjects: subjectsSummary, daysUntilExam: daysNum });
+  }
   return (
     <div className="tool-page">
       <h1>Study Plan Generator</h1>
       <p className="tool-description">
         Enter your subjects/topics, an optional priority weight for each, and the number of days
-        until your exam. This tool distributes study time across the available days - proportional
-        to each subject's weight - and outputs a day-by-day plan. Runs entirely in your browser.
+        until your exam, then click "Generate with AI" for a genuinely AI-generated day-by-day
+        study schedule - free, no account needed (rate-limited to keep it free for everyone).
       </p>
       <div className="tool-controls">
         <label>
@@ -98,27 +65,57 @@ export default function StudyPlanGenerator() {
           </li>
         ))}
       </ul>
-      {plan.length === 0 ? (
-        <p className="tool-placeholder">Add at least one subject and a number of days to generate a plan.</p>
-      ) : (
-        <div className="regex-groups-wrap">
-          <table className="regex-groups-table">
-            <thead>
-              <tr>
-                <th>Day</th>
-                <th>Subjects to study</th>
-              </tr>
-            </thead>
-            <tbody>
-              {plan.map((subjectsForDay, i) => (
-                <tr key={i}>
-                  <td>Day {i + 1}</td>
-                  <td>{subjectsForDay.length ? subjectsForDay.join(', ') : 'Rest / review'}</td>
+      <div className="tool-controls">
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || validSubjects.length === 0 || daysNum <= 0}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
+        </button>
+      </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
+      {!plan && !ai.loading && (
+        <p className="tool-placeholder">Add at least one subject and a number of days, then generate a plan.</p>
+      )}
+      {plan && (
+        <>
+          {plan.summary && <p style={{ opacity: 0.85 }}>{plan.summary}</p>}
+          <div className="regex-groups-wrap">
+            <table className="regex-groups-table">
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  <th>Subjects to study</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {(plan.schedule || []).map((day, i) => (
+                  <tr key={i}>
+                    <td>{day.day || `Day ${i + 1}`}</td>
+                    <td>
+                      {(day.subjects || []).length ? (
+                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                          {day.subjects.map((subj, j) => (
+                            <li key={j}>
+                              <strong>{subj.subject}</strong>
+                              {subj.minutes ? ` - ${subj.minutes} min` : ''}
+                              {subj.focus ? ` (${subj.focus})` : ''}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        'Rest / review'
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

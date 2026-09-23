@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function PartnershipAgreementOutline() {
   const [businessName, setBusinessName] = useState('');
   const [partners, setPartners] = useState([
@@ -6,6 +8,9 @@ export default function PartnershipAgreementOutline() {
     { name: '', profitSplit: '50' }
   ]);
   const [copied, setCopied] = useState(false);
+  const ai = useAiGenerate('partnership-agreement-outline', 'Partnership Agreement Outline');
+  const title = ai.result?.title || '';
+  const sections = ai.result?.sections || [];
   function updatePartner(index, field, value) {
     setPartners((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
   }
@@ -17,30 +22,21 @@ export default function PartnershipAgreementOutline() {
   }
   const totalSplit = partners.reduce((sum, p) => sum + (Number(p.profitSplit) || 0), 0);
   const partnerList = partners.map((p, i) => `${p.name || `Partner ${i + 1}`} (${p.profitSplit || 0}%)`).join(', ');
-  const sections = [
-    { title: 'Ownership & Profit Split', text: `Ownership and profit distribution among partners: ${partnerList}.` },
-    { title: 'Roles & Responsibilities', text: 'Define each partner\'s day-to-day duties, decision-making authority, and time commitment.' },
-    { title: 'Capital Contributions', text: 'Document what each partner contributes at formation (cash, assets, equipment, or expertise).' },
-    { title: 'Profit & Loss Distribution', text: `Profits and losses are shared according to the split above (${partnerList}), unless otherwise agreed in writing.` },
-    { title: 'Decision-Making', text: 'Specify which decisions require unanimous consent vs. majority vote.' },
-    { title: 'Dispute Resolution', text: 'Outline the process for resolving disagreements (e.g. mediation before litigation).' },
-    { title: 'Exit & Buyout Terms', text: 'Describe what happens if a partner wants to leave, retire, or is bought out.' },
-    { title: 'Dissolution', text: 'Define the process for winding down the business if the partnership ends.' }
-  ];
-  function buildText() {
-    const header = `Partnership Agreement Outline${businessName ? ` - ${businessName}` : ''}`;
-    const lines = [header, `Partners: ${partnerList}`, ''];
+  async function handleGenerate() {
+    await ai.generate({ businessName, partners: partnerList });
+  }
+  function assembleText() {
+    const lines = [title, ''];
     sections.forEach((s, i) => {
-      lines.push(`${i + 1}. ${s.title}`);
-      lines.push(`   ${s.text}`);
+      lines.push(`${i + 1}. ${s.heading}`);
+      lines.push(s.content);
       lines.push('');
     });
-    lines.push('This is an educational outline only, not a legal document. Consult a lawyer to draft an actual partnership agreement.');
     return lines.join('\n');
   }
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(buildText());
+      await navigator.clipboard.writeText(assembleText());
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -50,10 +46,11 @@ export default function PartnershipAgreementOutline() {
     <div className="tool-page">
       <h1>Partnership Agreement Outline</h1>
       <p className="tool-description">
-        Enter partner names, your business name, and a profit-split percentage to generate a
-        plain-language outline of standard partnership agreement sections filled in with your
-        values. This is an educational outline, not a legal document - consult a lawyer to draft an
-        actual partnership agreement. Runs entirely in your browser.
+        Enter partner names, your business name, and a profit-split percentage, then click "Generate
+        with AI" for a genuinely AI-written, plain-language outline of standard partnership agreement
+        sections tailored to your details - free, no account needed (rate-limited to keep it free for
+        everyone). This is an educational outline, not a legal document - consult a lawyer to draft an
+        actual partnership agreement.
       </p>
       <div className="tool-panel">
         <label htmlFor="pa-business">Business name</label>
@@ -63,10 +60,23 @@ export default function PartnershipAgreementOutline() {
         <button type="button" onClick={addPartner}>
           Add partner
         </button>
-        <button type="button" onClick={handleCopy}>
-          {copied ? 'Copied!' : 'Copy outline'}
+        <button type="button" onClick={handleGenerate} disabled={ai.loading}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={handleCopy} disabled={!sections.length}>
+          {copied ? 'Copied!' : 'Copy all'}
+        </button>
+        <button type="button" onClick={() => window.print()} disabled={!sections.length}>
+          Print
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
         </button>
       </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
       <div className="regex-groups-wrap">
         <table className="regex-groups-table">
           <thead>
@@ -100,16 +110,19 @@ export default function PartnershipAgreementOutline() {
           <strong>Note:</strong> Profit splits currently total {totalSplit}%, not 100%.
         </div>
       )}
-      <ul className="uuid-list">
-        {sections.map((s, i) => (
-          <li key={s.title} style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-            <strong>
-              {i + 1}. {s.title}
-            </strong>
-            <span style={{ opacity: 0.75, fontSize: '13px' }}>{s.text}</span>
-          </li>
-        ))}
-      </ul>
+      {sections.length > 0 && (
+        <div className="tool-panel">
+          {title && <h2>{title}</h2>}
+          {sections.map((s, i) => (
+            <div key={i} style={{ marginBottom: '16px' }}>
+              <h3>
+                {i + 1}. {s.heading}
+              </h3>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{s.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

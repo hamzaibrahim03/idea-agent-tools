@@ -1,23 +1,31 @@
-import { useMemo, useState } from 'react';
-function addLineNumbers(text, start, padWidth, separator) {
-  if (!text) return '';
-  const lines = text.split('\n');
-  const maxNumber = start + lines.length - 1;
-  const width = Math.max(padWidth, String(maxNumber).length);
-  return lines
-    .map((line, idx) => `${String(start + idx).padStart(width, '0')}${separator}${line}`)
-    .join('\n');
-}
+import { useEffect, useState } from 'react';
 export default function LineNumberAdder() {
   const [input, setInput] = useState('');
   const [start, setStart] = useState(1);
   const [padWidth, setPadWidth] = useState(1);
   const [separator, setSeparator] = useState(': ');
+  const [output, setOutput] = useState('');
+  const [fetchError, setFetchError] = useState('');
   const [copied, setCopied] = useState(false);
-  const output = useMemo(
-    () => addLineNumbers(input, Math.max(0, Number(start) || 0), Math.max(1, Number(padWidth) || 1), separator),
-    [input, start, padWidth, separator]
-  );
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setFetchError('');
+      fetch('/api/tools/line-number-adder', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { input, start, padWidth, separator } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setFetchError(data.error);
+          else setOutput(data.output || '');
+        })
+        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [input, start, padWidth, separator]);
   async function handleCopy() {
     if (!output) return;
     try {
@@ -32,8 +40,9 @@ export default function LineNumberAdder() {
       <h1>Line Number Adder</h1>
       <p className="tool-description">
         Paste text and prepend a line number to every line, with a configurable starting number,
-        zero-padding width, and separator. Runs entirely in your browser.
+        zero-padding width, and separator.
       </p>
+      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <label>
           Start at:

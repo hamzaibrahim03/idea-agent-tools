@@ -1,25 +1,44 @@
-import { useState } from 'react';
-const GUIDELINES = [
-  { key: 'button', label: 'Button label', min: 1, max: 25, note: 'Keep short and action-oriented (e.g. "Save changes")' },
-  { key: 'tooltip', label: 'Tooltip', min: 10, max: 80, note: 'Brief explanatory text, one short sentence' },
-  { key: 'toast', label: 'Toast / notification', min: 10, max: 100, note: 'Enough to convey the event, no more' },
-  { key: 'heading', label: 'Section heading', min: 3, max: 40, note: 'Short and scannable' },
-  { key: 'placeholder', label: 'Input placeholder', min: 3, max: 30, note: 'Example or hint text, not instructions' },
-  { key: 'errormsg', label: 'Error message', min: 10, max: 120, note: 'Explain what went wrong and how to fix it' }
+import { useEffect, useState } from 'react';
+const COMPONENT_TYPES = [
+  { key: 'button', label: 'Button label' },
+  { key: 'tooltip', label: 'Tooltip' },
+  { key: 'toast', label: 'Toast / notification' },
+  { key: 'heading', label: 'Section heading' },
+  { key: 'placeholder', label: 'Input placeholder' },
+  { key: 'errormsg', label: 'Error message' }
 ];
 export default function UiCopyLengthChecker() {
   const [text, setText] = useState('');
   const [componentType, setComponentType] = useState('button');
-  const guideline = GUIDELINES.find((g) => g.key === componentType);
-  const length = text.length;
-  const withinRange = length >= guideline.min && length <= guideline.max;
-  const status = length === 0 ? 'empty' : withinRange ? 'good' : length < guideline.min ? 'short' : 'long';
-  const statusLabel = {
-    empty: 'Enter some copy to check its length',
-    good: 'Within the recommended range',
-    short: `Shorter than the typical ${guideline.min}-${guideline.max} character range`,
-    long: `Longer than the typical ${guideline.min}-${guideline.max} character range`
-  }[status];
+  const [guideline, setGuideline] = useState({ label: 'Button label', min: 1, max: 25, note: '' });
+  const [length, setLength] = useState(0);
+  const [status, setStatus] = useState('empty');
+  const [statusLabel, setStatusLabel] = useState('Enter some copy to check its length');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/ui-copy-length-checker', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { text, componentType } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else {
+            setGuideline(data.guideline);
+            setLength(data.length);
+            setStatus(data.status);
+            setStatusLabel(data.statusLabel);
+          }
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [text, componentType]);
   return (
     <div className="tool-page">
       <h1>UI Copy Length Checker</h1>
@@ -28,11 +47,12 @@ export default function UiCopyLengthChecker() {
         common UI component length guidelines. These are general conventions, not hard rules; your
         design system may differ. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Component type:
           <select value={componentType} onChange={(e) => setComponentType(e.target.value)}>
-            {GUIDELINES.map((g) => (
+            {COMPONENT_TYPES.map((g) => (
               <option key={g.key} value={g.key}>{g.label}</option>
             ))}
           </select>

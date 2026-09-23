@@ -1,35 +1,27 @@
-import { useState } from 'react';
-function randomInRange(min, max) {
-  const buf = new Uint32Array(1);
-  crypto.getRandomValues(buf);
-  const fraction = buf[0] / 0x100000000;
-  return min + fraction * (max - min);
-}
-function hslToHex(h, s, l) {
-  s /= 100;
-  l /= 100;
-  const k = (n) => (n + h / 30) % 12;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-  const toHex = (n) => Math.round(f(n) * 255).toString(16).padStart(2, '0');
-  return `#${toHex(0)}${toHex(8)}${toHex(4)}`;
-}
-function randomSwatch() {
-  const h = Math.floor(randomInRange(0, 360));
-  const s = Math.round(randomInRange(55, 85));
-  const l = Math.round(randomInRange(45, 70));
-  return { hex: hslToHex(h, s, l), h, s, l };
-}
-function generatePalette() {
-  return Array.from({ length: 5 }, randomSwatch);
-}
+import { useEffect, useState } from 'react';
 export default function RandomColorPaletteGenerator() {
-  const [palette, setPalette] = useState(generatePalette);
+  const [palette, setPalette] = useState([]);
   const [copiedIndex, setCopiedIndex] = useState(-1);
+  const [error, setError] = useState('');
   function handleRegenerate() {
-    setPalette(generatePalette());
-    setCopiedIndex(-1);
+    setError('');
+    fetch('/api/tools/random-color-palette-generator', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ input: {} })
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) setError(data.error);
+        else setPalette(data.palette);
+        setCopiedIndex(-1);
+      })
+      .catch((e) => setError(e.message || 'Failed to generate'));
   }
+  useEffect(() => {
+    handleRegenerate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   async function handleCopy(hex, index) {
     try {
       await navigator.clipboard.writeText(hex);
@@ -49,6 +41,7 @@ export default function RandomColorPaletteGenerator() {
       <div className="tool-controls">
         <button onClick={handleRegenerate}>Regenerate palette</button>
       </div>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
         {palette.map((swatch, i) => (
           <div key={i} className="tool-panel" style={{ marginBottom: 0 }}>

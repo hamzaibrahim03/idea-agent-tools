@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 export default function PercentageCalculator() {
   const [percent, setPercent] = useState('25');
   const [ofValue, setOfValue] = useState('200');
@@ -6,22 +6,35 @@ export default function PercentageCalculator() {
   const [wholeValue, setWholeValue] = useState('200');
   const [fromValue, setFromValue] = useState('100');
   const [toValue, setToValue] = useState('120');
-  const percentOfResult =
-    percent !== '' && ofValue !== '' ? (Number(percent) / 100) * Number(ofValue) : null;
-  const whatPercentResult =
-    partValue !== '' && wholeValue !== '' && Number(wholeValue) !== 0
-      ? (Number(partValue) / Number(wholeValue)) * 100
-      : null;
-  const changeResult =
-    fromValue !== '' && toValue !== '' && Number(fromValue) !== 0
-      ? ((Number(toValue) - Number(fromValue)) / Number(fromValue)) * 100
-      : null;
+  const [result, setResult] = useState({ percentOfResult: null, whatPercentResult: null, changeResult: null });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/percentage-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { percent, ofValue, partValue, wholeValue, fromValue, toValue } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [percent, ofValue, partValue, wholeValue, fromValue, toValue]);
+  const { percentOfResult, whatPercentResult, changeResult } = result;
   return (
     <div className="tool-page">
       <h1>Percentage Calculator</h1>
       <p className="tool-description">
         Three common percentage calculations in one place. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-panel">
         <label>What is X% of Y?</label>
         <div className="tool-controls">

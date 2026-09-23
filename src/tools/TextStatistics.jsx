@@ -1,29 +1,27 @@
-import { useMemo, useState } from 'react';
-const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
-function analyzeLetters(text) {
-  const counts = new Map();
-  let vowels = 0;
-  let consonants = 0;
-  for (const ch of text.toLowerCase()) {
-    if (!/[a-z]/.test(ch)) continue;
-    counts.set(ch, (counts.get(ch) || 0) + 1);
-    if (VOWELS.has(ch)) vowels++;
-    else consonants++;
-  }
-  const frequency = [...counts.entries()]
-    .map(([letter, count]) => ({ letter, count }))
-    .sort((a, b) => b.count - a.count || a.letter.localeCompare(b.letter));
-  return {
-    frequency,
-    mostCommon: frequency[0] || null,
-    vowels,
-    consonants,
-    uniqueCount: counts.size
-  };
-}
+import { useEffect, useState } from 'react';
 export default function TextStatistics() {
   const [input, setInput] = useState('');
-  const stats = useMemo(() => analyzeLetters(input), [input]);
+  const [stats, setStats] = useState({ frequency: [], mostCommon: null, vowels: 0, consonants: 0, uniqueCount: 0 });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/text-statistics', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { input } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setStats(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [input]);
   const maxCount = stats.frequency[0]?.count || 1;
   return (
     <div className="tool-page">
@@ -32,6 +30,7 @@ export default function TextStatistics() {
         Paste text to see a letter-frequency breakdown, the most common letter, the vowel/consonant
         ratio, and the count of unique letters used. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-panel">
         <label htmlFor="stats-input">Text</label>
         <textarea

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { callAnthropicDirect, callGeminiDirect, callServerFunction } from '../lib/aiClient.js';
 const CATEGORIES = {
   video: {
     match: /\b(video|shoot|scene|footage|film|clip)\b/i,
@@ -155,116 +156,6 @@ const META_PROMPT = (description) =>
   `to get a high-quality result. Write the improved prompt itself - do not explain what you did, ` +
   `do not wrap it in quotes or code fences, and do not add any preamble like "Here is your prompt". ` +
   `Just output the finished prompt text, ready to use.\n\nRequest: ${description}`;
-const UPSTREAM_TIMEOUT_MS = 20000;
-async function fetchWithTimeout(url, options) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } catch (e) {
-    if (e.name === 'AbortError') {
-      throw new Error('The AI provider took too long to respond. It may be experiencing high demand - try again in a moment.');
-    }
-    throw e;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-async function parseJsonSafely(res) {
-  const text = await res.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-async function callAnthropic(apiKey, description) {
-  const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: META_PROMPT(description) }]
-    })
-  });
-  const data = await parseJsonSafely(res);
-  if (!res.ok) throw new Error(data?.error?.message || `Anthropic API error (${res.status})`);
-  return data?.content?.[0]?.text?.trim() || '';
-}
-const GEMINI_MODEL_CANDIDATES = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-flash-latest'];
-function isModelUnavailableError(message) {
-  return /is no longer available|not found|deprecated|does not exist/i.test(message || '');
-}
-async function callGemini(apiKey, description) {
-  let lastError;
-  for (const model of GEMINI_MODEL_CANDIDATES) {
-    try {
-      const res = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-          body: JSON.stringify({ contents: [{ parts: [{ text: META_PROMPT(description) }] }] })
-        }
-      );
-      const data = await parseJsonSafely(res);
-      if (!res.ok) {
-        const message = data?.error?.message || `Gemini API error (${res.status})`;
-        if (isModelUnavailableError(message)) {
-          lastError = new Error(message);
-          continue;
-        }
-        throw new Error(message);
-      }
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-    } catch (e) {
-      if (e.message && isModelUnavailableError(e.message)) {
-        lastError = e;
-        continue;
-      }
-      throw e;
-    }
-  }
-  throw lastError || new Error('No Gemini model candidate is currently available.');
-}
-const SERVER_FUNCTION_TIMEOUT_MS = 28000;
-async function callServerFunction(provider, description) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), SERVER_FUNCTION_TIMEOUT_MS);
-  let res;
-  try {
-    res = await fetch('/api/generate-prompt', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ provider, description }),
-      signal: controller.signal
-    });
-  } catch (e) {
-    if (e.name === 'AbortError') {
-      throw new Error('The AI provider took too long to respond. It may be experiencing high demand - try again in a moment.');
-    }
-    throw e;
-  } finally {
-    clearTimeout(timeout);
-  }
-  const data = await parseJsonSafely(res);
-  if (!res.ok) {
-    throw new Error(
-      data?.error ||
-      (res.status === 0 || !data
-        ? 'The server returned an unexpected empty response. Please try again.'
-        : `Server error (${res.status})`)
-    );
-  }
-  return data?.result || '';
-}
 function buildSection(heading, body) {
   return `# ${heading}\n\n${body}`;
 }
@@ -379,9 +270,9 @@ export default function PromptGenerator() {
       const trimmedKey = apiKey.trim();
       const result = trimmedKey
         ? provider === 'anthropic'
-          ? await callAnthropic(trimmedKey, description)
-          : await callGemini(trimmedKey, description)
-        : await callServerFunction(provider, description);
+          ? await callAnthropicDirect(trimmedKey, META_PROMPT(description))
+          : await callGeminiDirect(trimmedKey, META_PROMPT(description))
+        : (await callServerFunction('/api/generate-prompt', { provider, description }))?.result;
       if (!result) throw new Error('The model returned an empty response. Try again.');
       setAiOutput(result);
     } catch (e) {

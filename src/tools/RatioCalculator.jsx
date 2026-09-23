@@ -1,43 +1,34 @@
-import { useState } from 'react';
-function gcd(a, b) {
-  a = Math.abs(a);
-  b = Math.abs(b);
-  while (b) {
-    [a, b] = [b, a % b];
-  }
-  return a || 1;
-}
+import { useEffect, useState } from 'react';
 export default function RatioCalculator() {
   const [a, setA] = useState('2');
   const [b, setB] = useState('3');
   const [c, setC] = useState('10');
   const [d, setD] = useState('');
-  const aNum = Number(a);
-  const bNum = Number(b);
-  const cNum = Number(c);
-  const dNum = Number(d);
-  const blanks = [a, b, c, d].filter((v) => v.trim() === '').length;
-  const valid = blanks === 1 && [a, b, c, d].every((v) => v.trim() === '' || Number.isFinite(Number(v)));
-  let solved = null;
-  let solvedField = null;
-  if (valid) {
-    if (a.trim() === '') {
-      solved = (bNum * cNum) / dNum;
-      solvedField = 'a';
-    } else if (b.trim() === '') {
-      solved = (aNum * dNum) / cNum;
-      solvedField = 'b';
-    } else if (c.trim() === '') {
-      solved = (aNum * dNum) / bNum;
-      solvedField = 'c';
-    } else if (d.trim() === '') {
-      solved = (bNum * cNum) / aNum;
-      solvedField = 'd';
-    }
-  }
-  const simplifyValid = Number.isFinite(aNum) && Number.isFinite(bNum) && aNum !== 0 && bNum !== 0;
-  const g = simplifyValid ? gcd(aNum, bNum) : 1;
-  const simplified = simplifyValid ? `${aNum / g} : ${bNum / g}` : null;
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/ratio-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { a, b, c, d } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [a, b, c, d]);
+  const valid = result?.valid ?? false;
+  const solved = result?.solved ?? null;
+  const solvedField = result?.solvedField ?? null;
+  const simplified = result?.simplified ?? null;
   return (
     <div className="tool-page">
       <h1>Ratio &amp; Proportion Solver</h1>
@@ -54,6 +45,7 @@ export default function RatioCalculator() {
         <span>:</span>
         <input type="number" value={d} onChange={(e) => setD(e.target.value)} placeholder="d (leave blank to solve)" style={{ width: '130px' }} />
       </div>
+      {error && <div className="agent-error">{error}</div>}
       {!valid && (
         <div className="tool-error">
           <strong>Note:</strong> Leave exactly one of the four fields blank to solve the proportion.

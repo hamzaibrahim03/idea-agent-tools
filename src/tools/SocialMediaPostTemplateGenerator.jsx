@@ -1,51 +1,29 @@
-import { useMemo, useState } from 'react';
-const PLATFORMS = {
-  twitter: { label: 'Twitter / X', limit: 280 },
-  instagram: { label: 'Instagram', limit: 2200 },
-  linkedin: { label: 'LinkedIn', limit: 3000 },
-  facebook: { label: 'Facebook', limit: 63206 }
-};
+import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 const POST_TYPES = {
   announcement: 'announcement',
   question: 'question',
   tip: 'tip',
   promotion: 'promotion'
 };
-function buildPost({ platform, postType, topic, cta }) {
-  const t = topic.trim() || '[your topic]';
-  const c = cta.trim() || '[your call-to-action]';
-  const hashtagHint = platform === 'instagram' || platform === 'twitter' ? '\n\n#YourHashtags' : '';
-  switch (postType) {
-    case POST_TYPES.announcement:
-      return `Big news! ${t}\n\nWe're excited to share this with you. Here's what it means for you and why it matters.\n\n${c}${hashtagHint}`;
-    case POST_TYPES.question:
-      return `Quick question for our community: what's your take on ${t}?\n\nDrop your thoughts in the comments - we read every one.\n\n${c}${hashtagHint}`;
-    case POST_TYPES.tip:
-      return `Tip: here's something worth knowing about ${t}.\n\n1. Start with the basics\n2. Apply it consistently\n3. Track the results\n\n${c}${hashtagHint}`;
-    case POST_TYPES.promotion:
-      return `For a limited time: ${t}\n\nDon't miss this - it won't last long.\n\n${c}${hashtagHint}`;
-    default:
-      return '';
-  }
-}
 export default function SocialMediaPostTemplateGenerator() {
-  const [platform, setPlatform] = useState('twitter');
+  const [platforms, setPlatforms] = useState('Twitter / X, Instagram, LinkedIn');
   const [postType, setPostType] = useState(POST_TYPES.announcement);
   const [topic, setTopic] = useState('');
   const [cta, setCta] = useState('');
-  const [copied, setCopied] = useState(false);
-  const post = useMemo(
-    () => buildPost({ platform, postType, topic, cta }),
-    [platform, postType, topic, cta]
-  );
-  const limit = PLATFORMS[platform].limit;
-  const overLimit = post.length > limit;
-  async function handleCopy() {
-    if (!post) return;
+  const [copied, setCopied] = useState('');
+  const ai = useAiGenerate('social-media-post-template', 'Social Media Post Generator');
+  const posts = ai.result?.posts || [];
+  async function handleGenerate() {
+    await ai.generate({ platforms, postType, topic, cta });
+  }
+  async function handleCopy(post, key) {
+    const text = post.hashtags?.length ? `${post.text}\n\n${post.hashtags.join(' ')}` : post.text;
     try {
-      await navigator.clipboard.writeText(post);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      setTimeout(() => setCopied(''), 1500);
     } catch {
     }
   }
@@ -53,20 +31,20 @@ export default function SocialMediaPostTemplateGenerator() {
     <div className="tool-page">
       <h1>Social Media Post Template Generator</h1>
       <p className="tool-description">
-        Pick a platform and post type, fill in your topic and call-to-action, and get a structured
-        post draft based on common post patterns. This is a template generator, not AI writing - edit
-        the result to fit your voice. Runs entirely in your browser.
+        Pick platforms and a post type, fill in your topic and call-to-action, and click "Generate
+        with AI" for genuinely AI-written post drafts - free, no account needed (rate-limited to keep
+        it free for everyone). Edit the result to fit your voice before posting.
       </p>
       <div className="tool-controls">
         <label>
-          Platform:
-          <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
-            {Object.entries(PLATFORMS).map(([key, p]) => (
-              <option key={key} value={key}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+          Platforms:
+          <input
+            type="text"
+            value={platforms}
+            onChange={(e) => setPlatforms(e.target.value)}
+            placeholder="e.g. Twitter / X, Instagram, LinkedIn"
+            style={{ minWidth: 240 }}
+          />
         </label>
         <label>
           Post type:
@@ -77,9 +55,6 @@ export default function SocialMediaPostTemplateGenerator() {
             <option value={POST_TYPES.promotion}>Promotion</option>
           </select>
         </label>
-        <button onClick={handleCopy} disabled={!post}>
-          {copied ? 'Copied!' : 'Copy post'}
-        </button>
       </div>
       <div className="tool-grid">
         <div className="tool-panel">
@@ -103,22 +78,37 @@ export default function SocialMediaPostTemplateGenerator() {
           />
         </div>
       </div>
-      <div className="tool-panel">
-        <label htmlFor="post-output">
-          Generated post{' '}
-          {overLimit && (
-            <span className="tool-error-inline">
-              {post.length}/{limit} - over {PLATFORMS[platform].label} limit
-            </span>
+      <div className="tool-controls">
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || !topic.trim()}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
+        </button>
+      </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
+      {posts.length === 0 && !ai.loading && (
+        <p className="tool-placeholder">Fill in the fields above and click Generate with AI.</p>
+      )}
+      {posts.map((post, i) => (
+        <div className="tool-panel" key={i}>
+          <label>{post.platform}</label>
+          <textarea readOnly value={post.text} style={{ minHeight: 140 }} />
+          {post.hashtags?.length > 0 && (
+            <div className="timestamp-result">
+              <span>{post.hashtags.join(' ')}</span>
+            </div>
           )}
-        </label>
-        <textarea id="post-output" value={post} readOnly style={{ minHeight: 220 }} />
-      </div>
-      <div className="timestamp-result">
-        <span>
-          <strong>Character count:</strong> {post.length} / {limit}
-        </span>
-      </div>
+          <div className="tool-controls">
+            <button type="button" onClick={() => handleCopy(post, i)}>
+              {copied === i ? 'Copied!' : 'Copy post'}
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

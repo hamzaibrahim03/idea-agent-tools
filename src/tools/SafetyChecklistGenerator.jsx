@@ -1,54 +1,38 @@
-import { useState } from 'react';
-const WORKPLACE_CHECKLISTS = {
-  factory: {
-    label: 'Factory Floor',
-    items: [
-      'Machine guards in place on all equipment',
-      'Emergency stops tested and accessible',
-      'PPE worn per task (glasses, gloves, hearing protection)',
-      'Walkways and exits clear of obstructions',
-      'Spill response materials available near hazardous areas',
-      'Lockout/tagout procedures posted and followed'
-    ]
-  },
-  warehouse: {
-    label: 'Warehouse',
-    items: [
-      'Racking inspected for damage and overloading',
-      'Forklift operators certified and pre-shift checks logged',
-      'Pedestrian and forklift traffic lanes clearly marked',
-      'Loading dock edges guarded, dock plates secured',
-      'Fire extinguishers accessible and inspected',
-      'Emergency exits unobstructed and clearly marked'
-    ]
-  },
-  office: {
-    label: 'Office',
-    items: [
-      'Walkways and stairwells free of trip hazards',
-      'Fire extinguishers and smoke detectors inspected',
-      'Emergency exits clearly marked and unlocked during hours',
-      'Electrical cords not run across walkways',
-      'Ergonomic setup reviewed for workstations',
-      'First aid kit stocked and accessible'
-    ]
-  }
-};
+import { useEffect, useState } from 'react';
 export default function SafetyChecklistGenerator() {
   const [workplace, setWorkplace] = useState('factory');
   const [checked, setChecked] = useState({});
   const [copied, setCopied] = useState(false);
-  const current = WORKPLACE_CHECKLISTS[workplace];
+  const [data, setData] = useState({ label: '', items: [], workplaces: [] });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    setError('');
+    fetch('/api/tools/workplace-safety-checklist', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ input: { workplace } })
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        if (d.error) setError(d.error);
+        else setData(d);
+      })
+      .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    return () => { cancelled = true; };
+  }, [workplace]);
   function toggle(index) {
     setChecked((prev) => ({ ...prev, [`${workplace}-${index}`]: !prev[`${workplace}-${index}`] }));
   }
-  const checkedCount = current.items.filter((_, i) => checked[`${workplace}-${i}`]).length;
+  const items = data.items || [];
+  const checkedCount = items.filter((_, i) => checked[`${workplace}-${i}`]).length;
   function buildSummary() {
-    const lines = [`${current.label} Safety Checklist`, ''];
-    current.items.forEach((item, i) => {
+    const lines = [`${data.label} Safety Checklist`, ''];
+    items.forEach((item, i) => {
       lines.push(`[${checked[`${workplace}-${i}`] ? 'x' : ' '}] ${item}`);
     });
-    lines.push('', `Completed: ${checkedCount} / ${current.items.length}`);
+    lines.push('', `Completed: ${checkedCount} / ${items.length}`);
     return lines.join('\n');
   }
   async function handleCopy() {
@@ -59,6 +43,11 @@ export default function SafetyChecklistGenerator() {
     } catch {
     }
   }
+  const workplaces = data.workplaces && data.workplaces.length ? data.workplaces : [
+    { key: 'factory', label: 'Factory Floor' },
+    { key: 'warehouse', label: 'Warehouse' },
+    { key: 'office', label: 'Office' }
+  ];
   return (
     <div className="tool-page">
       <h1>Workplace Safety Checklist</h1>
@@ -67,12 +56,13 @@ export default function SafetyChecklistGenerator() {
         print. These are general reference checklists, not a substitute for a formal safety audit or
         your local regulatory requirements. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Workplace type:
           <select value={workplace} onChange={(e) => setWorkplace(e.target.value)}>
-            {Object.entries(WORKPLACE_CHECKLISTS).map(([key, w]) => (
-              <option key={key} value={key}>
+            {workplaces.map((w) => (
+              <option key={w.key} value={w.key}>
                 {w.label}
               </option>
             ))}
@@ -87,13 +77,13 @@ export default function SafetyChecklistGenerator() {
       </div>
       <div className="timestamp-result">
         <div>
-          <strong>Progress:</strong> {checkedCount} / {current.items.length} items checked
+          <strong>Progress:</strong> {checkedCount} / {items.length} items checked
         </div>
       </div>
       <div className="tool-panel">
-        <label>{current.label} Checklist</label>
+        <label>{data.label} Checklist</label>
         <ul className="uuid-list">
-          {current.items.map((item, i) => (
+          {items.map((item, i) => (
             <li key={i}>
               <label className="checkbox-label" style={{ flex: 1 }}>
                 <input type="checkbox" checked={!!checked[`${workplace}-${i}`]} onChange={() => toggle(i)} />

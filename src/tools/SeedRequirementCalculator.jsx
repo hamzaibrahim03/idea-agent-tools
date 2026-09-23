@@ -1,13 +1,32 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 export default function SeedRequirementCalculator() {
   const [area, setArea] = useState('50');
   const [areaUnit, setAreaUnit] = useState('acres');
   const [seedingRate, setSeedingRate] = useState('120');
   const [rateUnit, setRateUnit] = useState('lbs');
-  const areaNum = Number(area);
-  const rateNum = Number(seedingRate);
-  const valid = Number.isFinite(areaNum) && areaNum > 0 && Number.isFinite(rateNum) && rateNum > 0;
-  const totalSeed = valid ? areaNum * rateNum : null;
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/seed-requirement-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { area, seedingRate } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [area, seedingRate]);
+  const valid = result?.valid ?? false;
+  const totalSeed = result?.totalSeed ?? null;
   return (
     <div className="tool-page">
       <h1>Seed Requirement Calculator</h1>
@@ -16,6 +35,7 @@ export default function SeedRequirementCalculator() {
         variety and target population - enter your own rate from seed tag or agronomist guidance) to
         compute total seed quantity needed. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="src-area">Field area</label>

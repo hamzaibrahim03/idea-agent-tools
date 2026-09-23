@@ -1,28 +1,31 @@
-import { useState } from 'react';
-function pitchMultiplier(riseIn12) {
-  return Math.sqrt(1 + (riseIn12 / 12) ** 2);
-}
-const BUNDLES_PER_SQUARE = 3;
+import { useEffect, useState } from 'react';
 export default function RoofingCalculator() {
   const [footprintLength, setFootprintLength] = useState('40');
   const [footprintWidth, setFootprintWidth] = useState('30');
   const [pitch, setPitch] = useState('6');
   const [waste, setWaste] = useState('10');
-  const lengthNum = Number(footprintLength);
-  const widthNum = Number(footprintWidth);
-  const pitchNum = Number(pitch);
-  const wasteNum = Number(waste);
-  const valid =
-    Number.isFinite(lengthNum) && lengthNum > 0 &&
-    Number.isFinite(widthNum) && widthNum > 0 &&
-    Number.isFinite(pitchNum) && pitchNum >= 0 &&
-    Number.isFinite(wasteNum) && wasteNum >= 0;
-  const footprintArea = valid ? lengthNum * widthNum : 0;
-  const multiplier = valid ? pitchMultiplier(pitchNum) : 1;
-  const roofArea = footprintArea * multiplier;
-  const roofAreaWithWaste = roofArea * (1 + wasteNum / 100);
-  const squares = roofAreaWithWaste / 100;
-  const bundles = Math.ceil(squares * BUNDLES_PER_SQUARE);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/roofing-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { footprintLength, footprintWidth, pitch, waste } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [footprintLength, footprintWidth, pitch, waste]);
+  const valid = result?.valid ?? false;
   return (
     <div className="tool-page">
       <h1>Roofing Materials Calculator</h1>
@@ -32,6 +35,7 @@ export default function RoofingCalculator() {
         estimate for a simple roof shape, not a substitute for a contractor's measurement. Runs
         entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="roof-length">Building footprint length (ft)</label>
@@ -58,19 +62,19 @@ export default function RoofingCalculator() {
       {valid && (
         <div className="timestamp-result">
           <div>
-            <strong>Footprint area:</strong> {footprintArea.toFixed(1)} sq ft
+            <strong>Footprint area:</strong> {result.footprintArea.toFixed(1)} sq ft
           </div>
           <div>
-            <strong>Pitch multiplier:</strong> {multiplier.toFixed(3)}× ({pitchNum}:12 pitch)
+            <strong>Pitch multiplier:</strong> {result.multiplier.toFixed(3)}× ({result.pitchNum}:12 pitch)
           </div>
           <div>
-            <strong>Actual roof area:</strong> {roofArea.toFixed(1)} sq ft
+            <strong>Actual roof area:</strong> {result.roofArea.toFixed(1)} sq ft
           </div>
           <div>
-            <strong>With {waste}% waste:</strong> {roofAreaWithWaste.toFixed(1)} sq ft ({squares.toFixed(2)} squares)
+            <strong>With {result.wasteNum}% waste:</strong> {result.roofAreaWithWaste.toFixed(1)} sq ft ({result.squares.toFixed(2)} squares)
           </div>
           <div>
-            <strong>Shingle bundles needed:</strong> {bundles} (at {BUNDLES_PER_SQUARE}/square)
+            <strong>Shingle bundles needed:</strong> {result.bundles} (at 3/square)
           </div>
         </div>
       )}

@@ -131,7 +131,6 @@ code {
   background: var(--code-bg);
 }
 
-/* Shared animation keyframes - reused across home, agents, and tool pages */
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -182,8 +181,6 @@ code {
   }
 }
 
-/* Respect reduced-motion: collapse every animation/transition to instant,
-   rather than disabling them piecemeal per-rule. */
 @media (prefers-reduced-motion: reduce) {
 
   *,

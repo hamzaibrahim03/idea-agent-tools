@@ -16,6 +16,7 @@ export default function ResumeBuilder() {
   const [education, setEducation] = useState([emptyEducation()]);
   const [skills, setSkills] = useState('');
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
   function updateExperience(i, field, value) {
     setExperience((prev) => prev.map((e, idx) => (idx === i ? { ...e, [field]: value } : e)));
   }
@@ -23,37 +24,24 @@ export default function ResumeBuilder() {
     setEducation((prev) => prev.map((e, idx) => (idx === i ? { ...e, [field]: value } : e)));
   }
   const skillList = skills.split(',').map((s) => s.trim()).filter(Boolean);
-  function buildPlainText() {
-    const lines = [];
-    if (name) lines.push(name);
-    if (title) lines.push(title);
-    const contact = [email, phone, location].filter(Boolean).join(' | ');
-    if (contact) lines.push(contact);
-    if (summary) lines.push('', 'SUMMARY', summary);
-    if (experience.some((e) => e.role || e.company)) {
-      lines.push('', 'EXPERIENCE');
-      experience.forEach((e) => {
-        if (!e.role && !e.company) return;
-        lines.push(`${e.role}${e.role && e.company ? ' - ' : ''}${e.company}${e.dates ? ` (${e.dates})` : ''}`);
-        if (e.details) e.details.split('\n').forEach((d) => d.trim() && lines.push(`  - ${d.trim()}`));
-      });
-    }
-    if (education.some((e) => e.school || e.degree)) {
-      lines.push('', 'EDUCATION');
-      education.forEach((e) => {
-        if (!e.school && !e.degree) return;
-        lines.push(`${e.degree}${e.degree && e.school ? ' - ' : ''}${e.school}${e.dates ? ` (${e.dates})` : ''}`);
-      });
-    }
-    if (skillList.length) lines.push('', 'SKILLS', skillList.join(', '));
-    return lines.join('\n');
-  }
   async function handleCopy() {
+    setError('');
     try {
-      await navigator.clipboard.writeText(buildPlainText());
+      const r = await fetch('/api/tools/resume-builder', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { name, title, email, phone, location, summary, experience, education, skills } })
+      });
+      const data = await r.json();
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
+      await navigator.clipboard.writeText(data.plainText);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
+    } catch (e) {
+      setError(e.message || 'Failed to compute');
     }
   }
   return (
@@ -64,6 +52,7 @@ export default function ResumeBuilder() {
         clean, printable resume layout below. Use your browser's print function or the copy button
         to export it. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <button type="button" onClick={() => window.print()}>
           Print / Save as PDF

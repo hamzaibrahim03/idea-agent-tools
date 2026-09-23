@@ -1,38 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 function emptyMatrix(size) {
   return Array.from({ length: size }, () => Array.from({ length: size }, () => '0'));
-}
-function toNumbers(matrix) {
-  return matrix.map((row) => row.map((cell) => Number(cell)));
-}
-function hasInvalidCell(matrix) {
-  return matrix.some((row) => row.some((cell) => cell.trim() === '' || Number.isNaN(Number(cell))));
-}
-function add(a, b) {
-  return a.map((row, i) => row.map((val, j) => val + b[i][j]));
-}
-function multiply(a, b) {
-  const size = a.length;
-  const result = Array.from({ length: size }, () => Array(size).fill(0));
-  for (let i = 0; i < size; i++) {
-    for (let j = 0; j < size; j++) {
-      let sum = 0;
-      for (let k = 0; k < size; k++) sum += a[i][k] * b[k][j];
-      result[i][j] = sum;
-    }
-  }
-  return result;
-}
-function determinant(m) {
-  const n = m.length;
-  if (n === 2) {
-    return m[0][0] * m[1][1] - m[0][1] * m[1][0];
-  }
-  return (
-    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
-    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
-    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
-  );
 }
 function MatrixGrid({ label, matrix, onChange }) {
   return (
@@ -59,6 +27,10 @@ export default function MatrixCalculator() {
   const [operation, setOperation] = useState('add');
   const [matrixA, setMatrixA] = useState(emptyMatrix(2));
   const [matrixB, setMatrixB] = useState(emptyMatrix(2));
+  const [invalid, setInvalid] = useState(false);
+  const [resultMatrix, setResultMatrix] = useState(null);
+  const [resultScalar, setResultScalar] = useState(null);
+  const [fetchError, setFetchError] = useState('');
   function handleSizeChange(newSize) {
     setSize(newSize);
     setMatrixA(emptyMatrix(newSize));
@@ -70,23 +42,36 @@ export default function MatrixCalculator() {
     setter(next);
   }
   const needsB = operation === 'add' || operation === 'multiply';
-  const invalid = hasInvalidCell(matrixA) || (needsB && hasInvalidCell(matrixB));
-  let resultMatrix = null;
-  let resultScalar = null;
-  if (!invalid) {
-    const numA = toNumbers(matrixA);
-    const numB = toNumbers(matrixB);
-    if (operation === 'add') resultMatrix = add(numA, numB);
-    else if (operation === 'multiply') resultMatrix = multiply(numA, numB);
-    else resultScalar = determinant(numA);
-  }
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setFetchError('');
+      fetch('/api/tools/matrix-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { matrixA, matrixB, operation } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setFetchError(data.error);
+          else {
+            setInvalid(data.invalid);
+            setResultMatrix(data.resultMatrix);
+            setResultScalar(data.resultScalar);
+          }
+        })
+        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [matrixA, matrixB, operation]);
   return (
     <div className="tool-page">
       <h1>Matrix Calculator</h1>
       <p className="tool-description">
-        Add, multiply, or find the determinant of 2×2 or 3×3 matrices. Runs entirely in your
-        browser.
+        Add, multiply, or find the determinant of 2×2 or 3×3 matrices.
       </p>
+      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <label>
           Size:

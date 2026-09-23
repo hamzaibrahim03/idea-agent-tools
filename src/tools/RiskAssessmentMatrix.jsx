@@ -1,17 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 const DEFAULT_RISKS = [
   { description: 'Fall from height during roofing work', likelihood: '3', severity: '5' },
   { description: 'Trench collapse during excavation', likelihood: '2', severity: '5' },
   { description: 'Minor hand tool injury', likelihood: '4', severity: '2' }
 ];
-function riskLevel(score) {
-  if (score >= 15) return { label: 'Critical', className: 'risk-critical', color: '#7f1d1d', bg: 'rgba(127, 29, 29, 0.15)' };
-  if (score >= 8) return { label: 'High', className: 'risk-high', color: '#dc2626', bg: 'rgba(220, 38, 38, 0.12)' };
-  if (score >= 4) return { label: 'Medium', className: 'risk-medium', color: '#d97706', bg: 'rgba(217, 119, 6, 0.12)' };
-  return { label: 'Low', className: 'risk-low', color: '#16a34a', bg: 'rgba(22, 163, 74, 0.12)' };
-}
 export default function RiskAssessmentMatrix() {
   const [risks, setRisks] = useState(DEFAULT_RISKS);
+  const [scored, setScored] = useState([]);
+  const [error, setError] = useState('');
   function updateRisk(index, field, value) {
     setRisks((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
   }
@@ -21,18 +17,25 @@ export default function RiskAssessmentMatrix() {
   function removeRisk(index) {
     setRisks((prev) => prev.filter((_, i) => i !== index));
   }
-  const scored = risks
-    .map((r, originalIndex) => {
-      const likelihood = Number(r.likelihood);
-      const severity = Number(r.severity);
-      const validRow =
-        Number.isFinite(likelihood) && likelihood >= 1 && likelihood <= 5 &&
-        Number.isFinite(severity) && severity >= 1 && severity <= 5;
-      const score = validRow ? likelihood * severity : 0;
-      const level = validRow ? riskLevel(score) : null;
-      return { ...r, originalIndex, likelihood, severity, score, level, validRow };
-    })
-    .sort((a, b) => b.score - a.score);
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/construction-risk-assessment', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { risks } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setScored(data.scored);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [risks]);
   return (
     <div className="tool-page">
       <h1>Construction Risk Assessment Matrix</h1>
@@ -43,6 +46,7 @@ export default function RiskAssessmentMatrix() {
         High, Critical). This is a general planning aid, not a substitute for a formal safety risk
         assessment conducted by a qualified professional. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <button type="button" onClick={addRisk}>
           Add risk

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 export default function PropertyRoiCalculator() {
   const [purchasePrice, setPurchasePrice] = useState('300000');
   const [totalInvestment, setTotalInvestment] = useState('75000');
@@ -6,26 +6,28 @@ export default function PropertyRoiCalculator() {
   const [annualExpenses, setAnnualExpenses] = useState('6000');
   const [salePrice, setSalePrice] = useState('350000');
   const [holdingYears, setHoldingYears] = useState('5');
-  const purchaseNum = Number(purchasePrice);
-  const investmentNum = Number(totalInvestment);
-  const rentNum = Number(annualRent);
-  const expensesNum = Number(annualExpenses);
-  const saleNum = Number(salePrice);
-  const yearsNum = Number(holdingYears);
-  const valid =
-    Number.isFinite(purchaseNum) && purchaseNum > 0 &&
-    Number.isFinite(investmentNum) && investmentNum > 0 &&
-    Number.isFinite(rentNum) && rentNum >= 0 &&
-    Number.isFinite(expensesNum) && expensesNum >= 0 &&
-    Number.isFinite(saleNum) && saleNum >= 0 &&
-    Number.isFinite(yearsNum) && yearsNum > 0;
-  const annualCashFlow = valid ? rentNum - expensesNum : 0;
-  const cashOnCashReturn = valid ? (annualCashFlow / investmentNum) * 100 : 0;
-  const totalCashFlow = valid ? annualCashFlow * yearsNum : 0;
-  const capitalGain = valid ? saleNum - purchaseNum : 0;
-  const totalProfit = valid ? totalCashFlow + capitalGain : 0;
-  const totalRoi = valid ? (totalProfit / investmentNum) * 100 : 0;
-  const annualizedRoi = valid && yearsNum > 0 ? totalRoi / yearsNum : 0;
+  const [result, setResult] = useState({ valid: false, annualCashFlow: 0, cashOnCashReturn: 0, totalCashFlow: 0, capitalGain: 0, totalProfit: 0, totalRoi: 0, annualizedRoi: 0 });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/property-roi-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { purchasePrice, totalInvestment, annualRent, annualExpenses, salePrice, holdingYears } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [purchasePrice, totalInvestment, annualRent, annualExpenses, salePrice, holdingYears]);
+  const { valid, annualCashFlow, cashOnCashReturn, capitalGain, totalProfit, totalRoi, annualizedRoi } = result;
   return (
     <div className="tool-page">
       <h1>Property ROI Calculator</h1>
@@ -60,12 +62,13 @@ export default function PropertyRoiCalculator() {
           <input id="roi-years" type="number" min={0} value={holdingYears} onChange={(e) => setHoldingYears(e.target.value)} />
         </div>
       </div>
-      {!valid && (
+      {error && <div className="agent-error">{error}</div>}
+      {!error && !valid && (
         <div className="tool-error">
           <strong>Error:</strong> Enter a positive purchase price and cash invested, non-negative rent/expenses/sale price, and a positive holding period.
         </div>
       )}
-      {valid && (
+      {!error && valid && (
         <div className="timestamp-result">
           <div>
             <strong>Annual cash flow:</strong> {annualCashFlow.toFixed(2)}

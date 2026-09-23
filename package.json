@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n api,vite -c blue,green \"node dev-api-server.mjs\" \"vite\"",
+    "dev:vite-only": "vite",
+    "dev:api-only": "node dev-api-server.mjs",
     "dev:vercel": "vercel dev",
     "build": "vite build",
     "lint": "oxlint",
@@ -19,6 +21,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
     "oxlint": "^1.81.0",
     "vite": "^8.3.0"
   }

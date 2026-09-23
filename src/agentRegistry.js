@@ -1,47 +1,125 @@
-import ConstructionAgent from './agents/ConstructionAgent.jsx';
-import BusinessAgent from './agents/BusinessAgent.jsx';
-import DeveloperAgent from './agents/DeveloperAgent.jsx';
-import TravelAgent from './agents/TravelAgent.jsx';
+import AIAgent from './agents/AIAgent.jsx';
 export const AGENTS = [
   {
     slug: 'construction-agent',
     icon: '🏗️',
     category: 'construction',
     name: 'Construction Agent',
-    description: 'Plan a house build end-to-end: materials, BOQ, cost, timeline, labor, and risk - all in one guided flow.',
+    description: 'AI-generated construction plan: material quantities, labor estimates, project phases, and cost estimates.',
     seoDescription:
-      'Free construction planning agent. Enter your house size, location tier, and budget to get materials, a bill of quantities, cost estimate, timeline, labor plan, and risk assessment in one flow.',
-    component: ConstructionAgent
+      'Free AI construction planning agent. Describe your project to get AI-generated material quantities, labor estimates, project phases, and a cost estimate.',
+    agentKey: 'construction',
+    component: AIAgent
   },
   {
     slug: 'business-agent',
     icon: '💼',
     category: 'business',
     name: 'Business Agent',
-    description: 'Plan a new business end-to-end: startup costs, pricing, profit projection, and a marketing plan - all in one guided flow.',
+    description: 'AI-generated business plan: business ideas, market analysis, startup requirements, and pricing strategy.',
     seoDescription:
-      'Free business planning agent. Enter your business idea and starting capital to get a cost breakdown, pricing recommendation, profit projection, and marketing plan in one flow.',
-    component: BusinessAgent
-  },
-  {
-    slug: 'developer-agent',
-    icon: '💻',
-    category: 'dev',
-    name: 'Developer Agent',
-    description: 'Plan a software project end-to-end: requirements, component/API structure, database schema starter, and a testing/deployment checklist - all in one guided flow.',
-    seoDescription:
-      'Free software project planning agent. Describe your app to get a structured requirements breakdown, component and API outline, a starter database schema, and a testing/deployment checklist in one flow.',
-    component: DeveloperAgent
+      'Free AI business planning agent. Describe your business idea to get AI-generated market analysis, startup requirements, and pricing strategy.',
+    agentKey: 'business',
+    component: AIAgent
   },
   {
     slug: 'travel-agent',
     icon: '✈️',
     category: 'travel',
     name: 'Travel Agent',
-    description: 'Plan a trip end-to-end: transport, hotel budget, day-by-day itinerary, food, activities, and an emergency reserve - all in one guided flow.',
+    description: 'AI-generated trip plan: destinations, itinerary, activities, transport, and accommodation.',
     seoDescription:
-      'Free trip planning agent. Enter your destination, group size, trip length, and budget to get a transport/hotel/food/activity budget split, a day-by-day itinerary skeleton, and an emergency reserve recommendation.',
-    component: TravelAgent
+      'Free AI trip planning agent. Enter your destination and dates to get an AI-generated itinerary, budget split, and accommodation/transport recommendations.',
+    agentKey: 'travel',
+    component: AIAgent
+  },
+  {
+    slug: 'developer-agent',
+    icon: '💻',
+    category: 'dev',
+    name: 'Developer Agent',
+    description: 'AI-generated software plan: architecture, components, database, APIs, and code structure.',
+    seoDescription:
+      'Free AI software project planning agent. Describe your app to get an AI-generated architecture, database schema, API plan, and testing/deployment checklist.',
+    agentKey: 'developer',
+    component: AIAgent
+  },
+  {
+    slug: 'marketing-agent',
+    icon: '📣',
+    category: 'marketing',
+    name: 'Marketing Agent',
+    description: 'AI-generated marketing plan: strategy, channels, campaigns, and content ideas.',
+    seoDescription:
+      'Free AI marketing planning agent. Describe your product to get an AI-generated marketing strategy, channel plan, and campaign ideas.',
+    agentKey: 'marketing',
+    component: AIAgent
+  },
+  {
+    slug: 'realestate-agent',
+    icon: '🏠',
+    category: 'realestate',
+    name: 'Real Estate Agent',
+    description: 'AI-generated property analysis: requirements, price estimate, and comparisons.',
+    seoDescription:
+      'Free AI real estate agent. Describe the property you want to buy, rent, or invest in to get an AI-generated analysis, price estimate, and comparable options.',
+    agentKey: 'realestate',
+    component: AIAgent
+  },
+  {
+    slug: 'education-agent',
+    icon: '🎓',
+    category: 'education',
+    name: 'Education Agent',
+    description: 'AI-generated study plan: courses, learning paths, and milestones.',
+    seoDescription:
+      'Free AI education planning agent. Describe what you want to learn to get an AI-generated study plan, resources, and milestones.',
+    agentKey: 'education',
+    component: AIAgent
+  },
+  {
+    slug: 'finance-agent',
+    icon: '💰',
+    category: 'finance',
+    name: 'Finance Agent',
+    description: 'AI-generated financial plan: budget breakdown, expense analysis, and savings strategy.',
+    seoDescription:
+      'Free AI finance planning agent. Enter your income and expenses to get an AI-generated budget breakdown, savings plan, and financial recommendations.',
+    agentKey: 'finance',
+    component: AIAgent
+  },
+  {
+    slug: 'restaurant-agent',
+    icon: '🍽️',
+    category: 'restaurant',
+    name: 'Restaurant Agent',
+    description: 'AI-generated restaurant plan: menu planning, food costs, and recipe/concept ideas.',
+    seoDescription:
+      'Free AI restaurant planning agent. Describe your restaurant concept to get an AI-generated menu plan, food cost estimate, and staffing plan.',
+    agentKey: 'restaurant',
+    component: AIAgent
+  },
+  {
+    slug: 'vehicle-agent',
+    icon: '🚗',
+    category: 'vehicle',
+    name: 'Vehicle Agent',
+    description: 'AI-generated vehicle plan: maintenance schedule, ownership costs, and comparisons.',
+    seoDescription:
+      'Free AI vehicle planning agent. Describe your vehicle needs to get an AI-generated ownership cost estimate, maintenance schedule, and comparable options.',
+    agentKey: 'vehicle',
+    component: AIAgent
+  },
+  {
+    slug: 'energy-agent',
+    icon: '⚡',
+    category: 'energy',
+    name: 'Energy Agent',
+    description: 'AI-generated energy plan: electricity usage analysis, solar sizing, and estimated savings.',
+    seoDescription:
+      'Free AI energy planning agent. Enter your electricity usage to get an AI-generated solar sizing estimate and projected savings.',
+    agentKey: 'energy',
+    component: AIAgent
   }
 ];
 export function getAgentBySlug(slug) {

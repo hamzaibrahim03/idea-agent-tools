@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 function emptyProperty(name) {
   return { name, price: '', sqft: '', bedrooms: '', bathrooms: '', hoa: '', taxRate: '' };
 }
@@ -8,26 +8,39 @@ export default function PropertyComparisonTool() {
     emptyProperty('Property B'),
     emptyProperty('Property C')
   ]);
+  const [computedResults, setComputedResults] = useState([{}, {}, {}]);
+  const [error, setError] = useState('');
   function updateField(index, field, value) {
     setProperties((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
   }
-  function computed(p) {
-    const price = Number(p.price);
-    const sqft = Number(p.sqft);
-    const taxRate = Number(p.taxRate);
-    const pricePerSqft = price > 0 && sqft > 0 ? price / sqft : null;
-    const annualTax = price > 0 && Number.isFinite(taxRate) && taxRate > 0 ? price * (taxRate / 100) : null;
-    return { pricePerSqft, annualTax };
-  }
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/property-comparison-tool', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { properties } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setComputedResults(data.results || []);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [properties]);
   const rows = [
     { label: 'Price', get: (p) => p.price || '-' },
     { label: 'Square feet', get: (p) => p.sqft || '-' },
     { label: 'Bedrooms', get: (p) => p.bedrooms || '-' },
     { label: 'Bathrooms', get: (p) => p.bathrooms || '-' },
-    { label: 'Price per sq ft', get: (p) => (computed(p).pricePerSqft != null ? computed(p).pricePerSqft.toFixed(2) : '-') },
+    { label: 'Price per sq ft', get: (p, c) => (c?.pricePerSqft != null ? c.pricePerSqft.toFixed(2) : '-') },
     { label: 'HOA fee (monthly)', get: (p) => p.hoa || '-' },
     { label: 'Property tax rate (%)', get: (p) => p.taxRate || '-' },
-    { label: 'Est. annual property tax', get: (p) => (computed(p).annualTax != null ? computed(p).annualTax.toFixed(2) : '-') }
+    { label: 'Est. annual property tax', get: (p, c) => (c?.annualTax != null ? c.annualTax.toFixed(2) : '-') }
   ];
   return (
     <div className="tool-page">
@@ -37,6 +50,7 @@ export default function PropertyComparisonTool() {
         automatically computed price-per-square-foot and estimated annual property tax. Runs
         entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
         {properties.map((p, i) => (
           <div className="tool-panel" key={i}>
@@ -74,7 +88,7 @@ export default function PropertyComparisonTool() {
                 <tr key={row.label}>
                   <td>{row.label}</td>
                   {properties.map((p, i) => (
-                    <td key={i}>{row.get(p)}</td>
+                    <td key={i}>{row.get(p, computedResults[i])}</td>
                   ))}
                 </tr>
               ))}

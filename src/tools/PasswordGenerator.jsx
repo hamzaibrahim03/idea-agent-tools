@@ -1,21 +1,4 @@
-import { useState } from 'react';
-const LOWER = 'abcdefghijklmnopqrstuvwxyz';
-const UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const DIGITS = '0123456789';
-const SYMBOLS = '!@#$%^&*()_+-=[]{}|;:,.<>?';
-const AMBIGUOUS = /[Il1O0]/;
-function generate({ length, lower, upper, digits, symbols, excludeAmbiguous }) {
-  let pool = '';
-  if (lower) pool += LOWER;
-  if (upper) pool += UPPER;
-  if (digits) pool += DIGITS;
-  if (symbols) pool += SYMBOLS;
-  if (excludeAmbiguous) pool = pool.replace(AMBIGUOUS, '');
-  if (!pool) return '';
-  const bytes = new Uint32Array(length);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => pool[b % pool.length]).join('');
-}
+import { useEffect, useState } from 'react';
 function strengthLabel(pw) {
   if (!pw) return '';
   const variety = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter((re) => re.test(pw)).length;
@@ -31,14 +14,29 @@ export default function PasswordGenerator() {
   const [digits, setDigits] = useState(true);
   const [symbols, setSymbols] = useState(true);
   const [excludeAmbiguous, setExcludeAmbiguous] = useState(false);
-  const [password, setPassword] = useState(() =>
-    generate({ length: 16, lower: true, upper: true, digits: true, symbols: true, excludeAmbiguous: false })
-  );
+  const [password, setPassword] = useState('');
   const [copied, setCopied] = useState(false);
-  function handleGenerate() {
-    setPassword(generate({ length, lower, upper, digits, symbols, excludeAmbiguous }));
-    setCopied(false);
+  const [error, setError] = useState('');
+  async function handleGenerate() {
+    setError('');
+    try {
+      const r = await fetch('/api/tools/password-generator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { length, lower, upper, digits, symbols, excludeAmbiguous } })
+      });
+      const data = await r.json();
+      if (data.error) setError(data.error);
+      else setPassword(data.password);
+      setCopied(false);
+    } catch (e) {
+      setError(e.message || 'Failed to generate');
+    }
   }
+  useEffect(() => {
+    handleGenerate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   async function handleCopy() {
     if (!password) return;
     try {
@@ -98,6 +96,7 @@ export default function PasswordGenerator() {
         </button>
       </div>
       {noOptionsSelected && <div className="tool-error">Select at least one character type.</div>}
+      {error && <div className="agent-error">{error}</div>}
       {password && (
         <div className="timestamp-result">
           <code style={{ fontSize: 16, wordBreak: 'break-all' }}>{password}</code>

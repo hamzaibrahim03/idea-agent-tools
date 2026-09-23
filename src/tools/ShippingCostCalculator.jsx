@@ -1,11 +1,4 @@
-import { useMemo, useState } from 'react';
-function calculate({ actualWeight, length, width, height, unit, baseRate, perUnitRate }) {
-  const divisor = unit === 'in' ? 139 : 5000;
-  const dimWeight = (length * width * height) / divisor;
-  const billedWeight = Math.max(actualWeight, dimWeight);
-  const cost = baseRate + billedWeight * perUnitRate;
-  return { dimWeight, billedWeight, cost };
-}
+import { useEffect, useState } from 'react';
 export default function ShippingCostCalculator() {
   const [unit, setUnit] = useState('in');
   const [weight, setWeight] = useState('3');
@@ -14,25 +7,27 @@ export default function ShippingCostCalculator() {
   const [height, setHeight] = useState('4');
   const [baseRate, setBaseRate] = useState('5');
   const [perUnitRate, setPerUnitRate] = useState('0.75');
-  const weightNum = parseFloat(weight) || 0;
-  const lengthNum = parseFloat(length) || 0;
-  const widthNum = parseFloat(width) || 0;
-  const heightNum = parseFloat(height) || 0;
-  const baseRateNum = parseFloat(baseRate) || 0;
-  const perUnitRateNum = parseFloat(perUnitRate) || 0;
-  const result = useMemo(
-    () =>
-      calculate({
-        actualWeight: weightNum,
-        length: lengthNum,
-        width: widthNum,
-        height: heightNum,
-        unit,
-        baseRate: baseRateNum,
-        perUnitRate: perUnitRateNum
-      }),
-    [weightNum, lengthNum, widthNum, heightNum, unit, baseRateNum, perUnitRateNum]
-  );
+  const [result, setResult] = useState({ dimWeight: 0, billedWeight: 0, cost: 0 });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/shipping-cost-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { actualWeight: weight, length, width, height, unit, baseRate, perUnitRate } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [weight, length, width, height, unit, baseRate, perUnitRate]);
   const weightUnit = unit === 'in' ? 'lb' : 'kg';
   return (
     <div className="tool-page">
@@ -43,6 +38,7 @@ export default function ShippingCostCalculator() {
         formula and bills on the greater of actual vs. dimensional weight, as real carriers do. Runs
         entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Units:

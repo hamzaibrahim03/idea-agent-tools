@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 export default function ProfitLossCalculator() {
   const [revenue, setRevenue] = useState('10000');
   const [cogs, setCogs] = useState('4000');
@@ -7,6 +7,8 @@ export default function ProfitLossCalculator() {
     { label: 'Salaries', amount: '2500' },
     { label: 'Marketing', amount: '500' }
   ]);
+  const [result, setResult] = useState({ valid: false, grossProfit: 0, totalExpenses: 0, netProfit: 0, netMargin: 0, grossMargin: 0 });
+  const [error, setError] = useState('');
   function updateExpense(index, field, value) {
     setExpenses((prev) => prev.map((e, i) => (i === index ? { ...e, [field]: value } : e)));
   }
@@ -16,16 +18,26 @@ export default function ProfitLossCalculator() {
   function removeExpense(index) {
     setExpenses((prev) => prev.filter((_, i) => i !== index));
   }
-  const revenueNum = Number(revenue);
-  const cogsNum = Number(cogs);
-  const expenseAmounts = expenses.map((e) => Number(e.amount) || 0);
-  const totalOperatingExpenses = expenseAmounts.reduce((sum, a) => sum + a, 0);
-  const valid = Number.isFinite(revenueNum) && revenueNum >= 0 && Number.isFinite(cogsNum) && cogsNum >= 0;
-  const grossProfit = valid ? revenueNum - cogsNum : 0;
-  const totalExpenses = cogsNum + totalOperatingExpenses;
-  const netProfit = valid ? revenueNum - totalExpenses : 0;
-  const netMargin = valid && revenueNum > 0 ? (netProfit / revenueNum) * 100 : 0;
-  const grossMargin = valid && revenueNum > 0 ? (grossProfit / revenueNum) * 100 : 0;
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/profit-loss-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { revenue, cogs, expenses } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [revenue, cogs, expenses]);
+  const { valid, grossProfit, totalExpenses, netProfit, netMargin, grossMargin } = result;
   return (
     <div className="tool-page">
       <h1>Profit &amp; Loss Calculator</h1>
@@ -88,12 +100,13 @@ export default function ProfitLossCalculator() {
           </tbody>
         </table>
       </div>
-      {!valid && (
+      {error && <div className="agent-error">{error}</div>}
+      {!error && !valid && (
         <div className="tool-error">
           <strong>Error:</strong> Enter non-negative revenue and cost of goods sold.
         </div>
       )}
-      {valid && (
+      {!error && valid && (
         <div className="timestamp-result">
           <div>
             <strong>Gross profit:</strong> <code>{grossProfit.toFixed(2)}</code> ({grossMargin.toFixed(2)}% gross margin)

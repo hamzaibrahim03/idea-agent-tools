@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function NoticeToVacateGenerator() {
   const [landlordName, setLandlordName] = useState('');
   const [tenantName, setTenantName] = useState('');
@@ -7,35 +9,11 @@ export default function NoticeToVacateGenerator() {
   const [noticePeriod, setNoticePeriod] = useState('30 days');
   const [issuedBy, setIssuedBy] = useState('landlord');
   const [copied, setCopied] = useState(false);
-  function buildNotice() {
-    const landlord = landlordName || '[Landlord Name]';
-    const tenant = tenantName || '[Tenant Name]';
-    const propertyAddress = address || '[Property Address]';
-    const date = vacateDate || '[Vacate Date]';
-    const from = issuedBy === 'landlord' ? landlord : tenant;
-    const to = issuedBy === 'landlord' ? tenant : landlord;
-    return [
-      'NOTICE TO VACATE',
-      '',
-      `From: ${from}`,
-      `To: ${to}`,
-      `Property Address: ${propertyAddress}`,
-      '',
-      `This letter serves as formal notice, in accordance with a notice period of ${noticePeriod}, that the tenancy at the above address will end.`,
-      '',
-      `Requested/required vacate date: ${date}`,
-      '',
-      issuedBy === 'landlord'
-        ? `${tenant} is requested to vacate the premises, remove all personal belongings, and return all keys by the date above.`
-        : `${tenant} intends to vacate the premises, remove all personal belongings, and return all keys by the date above.`,
-      '',
-      'Please contact us to arrange a move-out inspection and the return of any security deposit, subject to the condition of the property and the terms of the original rental agreement.',
-      '',
-      `Signed: ${from}`,
-      'Date: ____________________'
-    ].join('\n');
+  const ai = useAiGenerate('notice-to-vacate', 'Notice to Vacate Generator');
+  const notice = ai.result?.letter || '';
+  async function handleGenerate() {
+    await ai.generate({ landlordName, tenantName, address, vacateDate, noticePeriod, issuedBy });
   }
-  const notice = buildNotice();
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(notice);
@@ -48,8 +26,9 @@ export default function NoticeToVacateGenerator() {
     <div className="tool-page">
       <h1>Notice to Vacate Generator</h1>
       <p className="tool-description">
-        Fill in the details below to generate a formatted notice-to-vacate letter template, usable
-        by either a landlord or a tenant. Runs entirely in your browser.
+        Fill in the details below and click "Generate with AI" for a genuinely AI-written
+        notice-to-vacate letter, usable by either a landlord or a tenant - free, no account needed
+        (rate-limited to keep it free for everyone).
       </p>
       <div className="tool-error">
         <strong>Not legal advice:</strong> Required notice periods and delivery methods vary by
@@ -88,13 +67,26 @@ export default function NoticeToVacateGenerator() {
         </div>
       </div>
       <div className="tool-controls">
-        <button type="button" onClick={handleCopy}>
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || !address.trim()}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={handleCopy} disabled={!notice}>
           {copied ? 'Copied!' : 'Copy notice'}
         </button>
+        <button type="button" onClick={() => window.print()} disabled={!notice}>
+          Print
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
+        </button>
       </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
       <div className="tool-panel">
         <label>Generated notice</label>
-        <textarea readOnly value={notice} style={{ minHeight: 280 }} />
+        <textarea readOnly value={notice} placeholder="Fill in the details above and click Generate with AI" style={{ minHeight: 280 }} />
       </div>
     </div>
   );

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function RentalAgreementOutline() {
   const [landlord, setLandlord] = useState('');
   const [tenant, setTenant] = useState('');
@@ -7,44 +9,24 @@ export default function RentalAgreementOutline() {
   const [termLength, setTermLength] = useState('12 months');
   const [deposit, setDeposit] = useState('');
   const [copied, setCopied] = useState(false);
-  function buildOutline() {
-    const landlordName = landlord || '[Landlord Name]';
-    const tenantName = tenant || '[Tenant Name]';
-    const propertyAddress = address || '[Property Address]';
-    const rentAmount = rent || '[Rent Amount]';
-    const depositAmount = deposit || '[Deposit Amount]';
-    return [
-      'RESIDENTIAL RENTAL AGREEMENT - OUTLINE',
-      '',
-      `1. Parties: This agreement is between ${landlordName} ("Landlord") and ${tenantName} ("Tenant").`,
-      '',
-      `2. Property: The Landlord agrees to rent to the Tenant the property located at ${propertyAddress}.`,
-      '',
-      `3. Term: This agreement begins on the move-in date and continues for a term of ${termLength}.`,
-      '',
-      `4. Rent: Tenant agrees to pay ${rentAmount} per month, due on an agreed date each month, by an agreed payment method.`,
-      '',
-      `5. Security Deposit: Tenant agrees to pay a security deposit of ${depositAmount}, refundable subject to the condition of the property at move-out, per applicable local law.`,
-      '',
-      '6. Use of Property: The property is to be used as a private residence only, for the named Tenant(s) and any additional occupants disclosed and approved in writing.',
-      '',
-      '7. Maintenance and Repairs: Landlord is responsible for major repairs and maintaining the property in habitable condition; Tenant is responsible for reporting issues promptly and avoiding damage beyond normal wear and tear.',
-      '',
-      '8. Utilities: Specify which utilities (electricity, water, gas, internet, etc.) are the responsibility of Landlord vs Tenant.',
-      '',
-      '9. Rules and Restrictions: Include any rules on pets, smoking, subletting, alterations, and noise.',
-      '',
-      '10. Termination and Renewal: Describe notice periods required to end or renew the tenancy, and conditions for early termination.',
-      '',
-      '11. Governing Law: This agreement is governed by the laws of the applicable state/jurisdiction.',
-      '',
-      '12. Signatures: Both parties sign and date the agreement to indicate acceptance of these terms.'
-    ].join('\n');
+  const ai = useAiGenerate('rental-agreement-outline', 'Rental Agreement Outline Generator');
+  const title = ai.result?.title || '';
+  const sections = ai.result?.sections || [];
+  async function handleGenerate() {
+    await ai.generate({ landlord, tenant, address, rent, termLength, deposit });
   }
-  const outline = buildOutline();
+  function assembleText() {
+    const lines = [title, ''];
+    sections.forEach((s, i) => {
+      lines.push(`${i + 1}. ${s.heading}`);
+      lines.push(s.content);
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(outline);
+      await navigator.clipboard.writeText(assembleText());
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -54,9 +36,10 @@ export default function RentalAgreementOutline() {
     <div className="tool-page">
       <h1>Rental Agreement Outline Generator</h1>
       <p className="tool-description">
-        Fill in the basic details below to generate a plain-language outline of the sections a
-        typical residential rental agreement contains, with your entered values filled in. Runs
-        entirely in your browser.
+        Fill in the basic details below and click "Generate with AI" for a genuinely AI-written,
+        plain-language outline of the sections a typical residential rental agreement contains,
+        tailored to your details - free, no account needed (rate-limited to keep it free for
+        everyone).
       </p>
       <div className="tool-error">
         <strong>Not a legal document:</strong> This is an educational outline only, not a legally
@@ -90,14 +73,36 @@ export default function RentalAgreementOutline() {
         </div>
       </div>
       <div className="tool-controls">
-        <button type="button" onClick={handleCopy}>
-          {copied ? 'Copied!' : 'Copy outline'}
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || !address.trim()}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={handleCopy} disabled={!sections.length}>
+          {copied ? 'Copied!' : 'Copy all'}
+        </button>
+        <button type="button" onClick={() => window.print()} disabled={!sections.length}>
+          Print
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
         </button>
       </div>
-      <div className="tool-panel">
-        <label>Generated outline</label>
-        <textarea readOnly value={outline} style={{ minHeight: 340 }} />
-      </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
+      {sections.length > 0 && (
+        <div className="tool-panel">
+          {title && <h2>{title}</h2>}
+          {sections.map((s, i) => (
+            <div key={i} style={{ marginBottom: '16px' }}>
+              <h3>
+                {i + 1}. {s.heading}
+              </h3>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{s.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,37 +1,30 @@
-import { useState, useMemo } from 'react';
-function parseDelimited(text, delimiter) {
-  const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
-  if (lines.length === 0) return { headers: [], rows: [] };
-  const splitLine = (line) => (delimiter === '\t' ? line.split('\t') : line.split(','));
-  const headers = splitLine(lines[0]).map((h) => h.trim());
-  const rows = lines.slice(1).map((line) => splitLine(line).map((c) => c.trim()));
-  return { headers, rows };
-}
-function toMarkdown(headers, rows) {
-  const headerLine = `| ${headers.join(' | ')} |`;
-  const dividerLine = `| ${headers.map(() => '---').join(' | ')} |`;
-  const bodyLines = rows.map((r) => `| ${headers.map((_, i) => r[i] || '').join(' | ')} |`);
-  return [headerLine, dividerLine, ...bodyLines].join('\n');
-}
-function toCsv(headers, rows) {
-  const escape = (cell) => {
-    const s = String(cell ?? '');
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const lines = [headers.map(escape).join(','), ...rows.map((r) => headers.map((_, i) => escape(r[i] || '')).join(','))];
-  return lines.join('\n');
-}
+import { useEffect, useState } from 'react';
 export default function TableExtractorFromText() {
   const [input, setInput] = useState('');
   const [delimiter, setDelimiter] = useState('tab');
   const [copied, setCopied] = useState('');
-  const { headers, rows } = useMemo(
-    () => parseDelimited(input, delimiter === 'tab' ? '\t' : ','),
-    [input, delimiter]
-  );
-  const hasData = headers.length > 0;
-  const markdown = hasData ? toMarkdown(headers, rows) : '';
-  const csv = hasData ? toCsv(headers, rows) : '';
+  const [result, setResult] = useState({ headers: [], rows: [], markdown: '', csv: '', hasData: false });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/table-extractor-from-text', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { input, delimiter } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [input, delimiter]);
+  const { headers, rows, markdown, csv, hasData } = result;
   async function handleCopy(text, which) {
     if (!text) return;
     try {
@@ -65,6 +58,7 @@ export default function TableExtractorFromText() {
           {copied === 'csv' ? 'Copied!' : 'Copy as CSV'}
         </button>
       </div>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-panel">
         <label htmlFor="tef-input">Paste delimited text</label>
         <textarea

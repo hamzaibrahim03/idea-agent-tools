@@ -1,19 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 function emptyOffer(label) {
   return { label, base: '', bonus: '', benefits: '', commuteCost: '', commuteMinutes: '', remoteScore: '5' };
-}
-function computeValue(offer) {
-  const base = Number(offer.base) || 0;
-  const bonus = Number(offer.bonus) || 0;
-  const benefits = Number(offer.benefits) || 0;
-  const commuteCost = Number(offer.commuteCost) || 0;
-  const commuteMinutes = Number(offer.commuteMinutes) || 0;
-  const remoteScore = Number(offer.remoteScore) || 0;
-  const annualCommuteCost = commuteCost * 240;
-  const annualCommuteTimeCost = (commuteMinutes * 2 * 240 / 60) * 25;
-  const remoteBonusValue = remoteScore * 500;
-  const totalValue = base + bonus + benefits + remoteBonusValue - annualCommuteCost - annualCommuteTimeCost;
-  return { totalValue, annualCommuteCost, annualCommuteTimeCost, remoteBonusValue };
 }
 function OfferForm({ offer, onChange }) {
   return (
@@ -49,8 +36,31 @@ function OfferForm({ offer, onChange }) {
 export default function JobOfferComparisonTool() {
   const [offerA, setOfferA] = useState(emptyOffer('Offer A'));
   const [offerB, setOfferB] = useState(emptyOffer('Offer B'));
-  const resultA = computeValue(offerA);
-  const resultB = computeValue(offerB);
+  const [resultA, setResultA] = useState({ totalValue: 0, annualCommuteCost: 0, annualCommuteTimeCost: 0, remoteBonusValue: 0 });
+  const [resultB, setResultB] = useState({ totalValue: 0, annualCommuteCost: 0, annualCommuteTimeCost: 0, remoteBonusValue: 0 });
+  const [fetchError, setFetchError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setFetchError('');
+      fetch('/api/tools/job-offer-comparison-tool', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { offerA, offerB } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setFetchError(data.error);
+          else {
+            setResultA(data.resultA);
+            setResultB(data.resultB);
+          }
+        })
+        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [offerA, offerB]);
   return (
     <div className="tool-page">
       <h1>Job Offer Comparison Tool</h1>
@@ -59,8 +69,9 @@ export default function JobOfferComparisonTool() {
         time, and remote flexibility. Commute cost and time are annualized and remote flexibility
         is converted to a small illustrative dollar value, then combined into a normalized "total
         value" for comparison. This is a transparent, configurable calculation - not financial
-        advice or an AI-driven recommendation. Runs entirely in your browser.
+        advice or an AI-driven recommendation.
       </p>
+      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-grid">
         <OfferForm offer={offerA} onChange={setOfferA} />
         <OfferForm offer={offerB} onChange={setOfferB} />

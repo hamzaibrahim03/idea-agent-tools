@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 const FLAG_OPTIONS = [
   { key: 'g', label: 'Global (g)' },
   { key: 'i', label: 'Case-insensitive (i)' },
@@ -9,31 +9,33 @@ export default function RegexTester() {
   const [pattern, setPattern] = useState('');
   const [flags, setFlags] = useState(['g']);
   const [testString, setTestString] = useState('');
+  const [result, setResult] = useState({ matches: [], highlighted: null, regexError: '' });
+  const [error, setError] = useState('');
   function toggleFlag(key) {
     setFlags((prev) => (prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key]));
   }
-  const { error, matches, highlighted } = useMemo(() => {
-    if (!pattern) return { error: '', matches: [], highlighted: null };
-    try {
-      const re = new RegExp(pattern, flags.join(''));
-      if (!testString) return { error: '', matches: [], highlighted: null };
-      const scanFlags = flags.includes('g') ? flags.join('') : `${flags.join('')}g`;
-      const scanRe = new RegExp(pattern, scanFlags);
-      const found = [...testString.matchAll(scanRe)];
-      const segments = [];
-      let lastIndex = 0;
-      for (const m of found) {
-        if (m.index > lastIndex) segments.push({ text: testString.slice(lastIndex, m.index), match: false });
-        segments.push({ text: m[0], match: true });
-        lastIndex = m.index + m[0].length;
-        if (m[0].length === 0) lastIndex++;
-      }
-      if (lastIndex < testString.length) segments.push({ text: testString.slice(lastIndex), match: false });
-      return { error: '', matches: found, highlighted: segments };
-    } catch (e) {
-      return { error: e.message, matches: [], highlighted: null };
-    }
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/regex-tester', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { pattern, flags, testString } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [pattern, flags, testString]);
+  const matches = result.matches || [];
+  const highlighted = result.highlighted || null;
+  const regexError = result.regexError || '';
   return (
     <div className="tool-page">
       <h1>Regex Tester</h1>
@@ -64,9 +66,10 @@ export default function RegexTester() {
           </label>
         ))}
       </div>
-      {error && (
+      {error && <div className="agent-error">{error}</div>}
+      {regexError && (
         <div className="tool-error">
-          <strong>Invalid pattern:</strong> {error}
+          <strong>Invalid pattern:</strong> {regexError}
         </div>
       )}
       <div className="tool-panel">
@@ -91,7 +94,7 @@ export default function RegexTester() {
             : <span className="tool-placeholder">Matches will be highlighted here</span>}
         </div>
       </div>
-      {matches.length > 0 && matches.some((m) => m.length > 1) && (
+      {matches.length > 0 && matches.some((m) => m.groups.length > 0) && (
         <div className="tool-panel">
           <label>Capture groups</label>
           <div className="regex-groups-wrap">
@@ -107,8 +110,8 @@ export default function RegexTester() {
                 {matches.map((m, i) => (
                   <tr key={i}>
                     <td>{i + 1}</td>
-                    <td><code>{m[0]}</code></td>
-                    <td>{m.slice(1).map((g, gi) => <code key={gi}>{g ?? '(undefined)'} </code>)}</td>
+                    <td><code>{m.full}</code></td>
+                    <td>{m.groups.map((g, gi) => <code key={gi}>{g ?? '(undefined)'} </code>)}</td>
                   </tr>
                 ))}
               </tbody>

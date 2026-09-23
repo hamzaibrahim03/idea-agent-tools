@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 const DEFAULT_ITEMS = [
   { name: 'Pallet A', weight: '800' },
   { name: 'Pallet B', weight: '650' }
@@ -6,6 +6,27 @@ const DEFAULT_ITEMS = [
 export default function VehicleLoadCalculator() {
   const [maxCapacity, setMaxCapacity] = useState('5000');
   const [items, setItems] = useState(DEFAULT_ITEMS);
+  const [result, setResult] = useState({ capacityValid: false, capacityNum: 0, totalWeight: 0, remaining: null, overCapacity: false });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/vehicle-load-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { maxCapacity, items } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [maxCapacity, items]);
   function updateItem(index, field, value) {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, [field]: value } : it)));
   }
@@ -15,14 +36,7 @@ export default function VehicleLoadCalculator() {
   function removeItem(index) {
     setItems((prev) => prev.filter((_, i) => i !== index));
   }
-  const capacityNum = Number(maxCapacity);
-  const capacityValid = Number.isFinite(capacityNum) && capacityNum > 0;
-  const totalWeight = items.reduce((sum, it) => {
-    const w = Number(it.weight);
-    return sum + (Number.isFinite(w) && w >= 0 ? w : 0);
-  }, 0);
-  const remaining = capacityValid ? capacityNum - totalWeight : null;
-  const overCapacity = capacityValid && totalWeight > capacityNum;
+  const { capacityValid, capacityNum, totalWeight, remaining, overCapacity } = result;
   return (
     <div className="tool-page">
       <h1>Vehicle Load Calculator</h1>
@@ -31,6 +45,7 @@ export default function VehicleLoadCalculator() {
         The tool sums total cargo weight, shows remaining capacity, and flags if you're over the
         limit. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Max payload capacity:

@@ -1,46 +1,29 @@
-import { useState } from 'react';
-function parseVector(text) {
-  const parts = text.split(',').map((s) => Number(s.trim()));
-  if (parts.length < 2 || parts.length > 3 || parts.some((n) => !Number.isFinite(n))) return null;
-  return parts;
-}
-function pad(v) {
-  return v.length === 2 ? [...v, 0] : v;
-}
-function add(a, b) {
-  return a.map((v, i) => v + b[i]);
-}
-function sub(a, b) {
-  return a.map((v, i) => v - b[i]);
-}
-function dot(a, b) {
-  return a.reduce((sum, v, i) => sum + v * b[i], 0);
-}
-function cross(a, b) {
-  const [a1, a2, a3] = pad(a);
-  const [b1, b2, b3] = pad(b);
-  return [a2 * b3 - a3 * b2, a3 * b1 - a1 * b3, a1 * b2 - a2 * b1];
-}
-function magnitude(v) {
-  return Math.sqrt(v.reduce((sum, x) => sum + x * x, 0));
-}
-function format(v) {
-  return `(${v.map((n) => Number(n.toFixed(6))).join(', ')})`;
-}
+import { useEffect, useState } from 'react';
 export default function VectorCalculator() {
   const [vecA, setVecA] = useState('1, 2, 3');
   const [vecB, setVecB] = useState('4, 5, 6');
-  const a = parseVector(vecA);
-  const b = parseVector(vecB);
-  const valid = a !== null && b !== null;
-  const same2D = valid && vecA.split(',').length === vecB.split(',').length;
-  const magA = valid ? magnitude(a) : null;
-  const magB = valid ? magnitude(b) : null;
-  const sumVec = valid && same2D ? add(a, b) : null;
-  const diffVec = valid && same2D ? sub(a, b) : null;
-  const dotProduct = valid && same2D ? dot(a, b) : null;
-  const crossProduct = valid ? cross(a, b) : null;
-  const angleRad = valid && same2D && magA > 0 && magB > 0 ? Math.acos(Math.min(1, Math.max(-1, dotProduct / (magA * magB)))) : null;
+  const [result, setResult] = useState({ valid: false });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/vector-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { vecA, vecB } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [vecA, vecB]);
+  const { valid, same2D, magA, magB, sumVec, diffVec, dotProduct, crossProduct, angleDeg } = result;
   return (
     <div className="tool-page">
       <h1>Vector Calculator</h1>
@@ -49,6 +32,7 @@ export default function VectorCalculator() {
         two 2D or 3D vectors. Enter components separated by commas, e.g. "1, 2, 3". Runs entirely
         in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="vec-a">Vector A</label>
@@ -79,12 +63,12 @@ export default function VectorCalculator() {
           </div>
           {sumVec && (
             <div>
-              <strong>A + B:</strong> {format(sumVec)}
+              <strong>A + B:</strong> {sumVec}
             </div>
           )}
           {diffVec && (
             <div>
-              <strong>A − B:</strong> {format(diffVec)}
+              <strong>A − B:</strong> {diffVec}
             </div>
           )}
           {dotProduct !== null && (
@@ -93,11 +77,11 @@ export default function VectorCalculator() {
             </div>
           )}
           <div>
-            <strong>A × B (cross product):</strong> {format(crossProduct)}
+            <strong>A × B (cross product):</strong> {crossProduct}
           </div>
-          {angleRad !== null && (
+          {angleDeg !== null && (
             <div>
-              <strong>Angle between A and B:</strong> {(angleRad * (180 / Math.PI)).toFixed(4)}°
+              <strong>Angle between A and B:</strong> {angleDeg.toFixed(4)}°
             </div>
           )}
         </div>

@@ -1,42 +1,30 @@
 import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function NdaTemplateGenerator() {
   const [disclosingParty, setDisclosingParty] = useState('');
   const [receivingParty, setReceivingParty] = useState('');
   const [purpose, setPurpose] = useState('');
   const [duration, setDuration] = useState('2 years');
   const [copied, setCopied] = useState(false);
-  function buildOutline() {
-    const disclosing = disclosingParty || '[Disclosing Party]';
-    const receiving = receivingParty || '[Receiving Party]';
-    const purposeText = purpose || '[purpose of the disclosure, e.g. evaluating a potential business relationship]';
-    return [
-      'NON-DISCLOSURE AGREEMENT - OUTLINE',
-      '',
-      `1. Parties: This agreement is between ${disclosing} ("Disclosing Party") and ${receiving} ("Receiving Party").`,
-      '',
-      `2. Purpose: The parties wish to exchange confidential information for the purpose of ${purposeText}.`,
-      '',
-      '3. Definition of Confidential Information: Describe what counts as confidential - e.g. business plans, technical data, customer lists, financials - and any exclusions (information already public, independently developed, or already known).',
-      '',
-      '4. Obligations of Receiving Party: Receiving Party agrees to keep the information confidential, use it only for the stated purpose, and not disclose it to third parties without consent.',
-      '',
-      `5. Term: This agreement, and the confidentiality obligations within it, remain in effect for ${duration} from the date of signing.`,
-      '',
-      '6. Exclusions: Information that is publicly available, independently developed, or rightfully received from a third party is typically excluded from confidentiality obligations.',
-      '',
-      '7. Return or Destruction of Materials: Upon request or termination, Receiving Party agrees to return or destroy all confidential materials.',
-      '',
-      '8. Remedies: Describe what happens if the agreement is breached (e.g. injunctive relief, damages).',
-      '',
-      '9. Governing Law: This agreement is governed by the laws of the applicable state/jurisdiction.',
-      '',
-      '10. Signatures: Both parties sign and date to indicate acceptance.'
-    ].join('\n');
+  const ai = useAiGenerate('nda', 'NDA Template Generator');
+  const title = ai.result?.title || '';
+  const sections = ai.result?.sections || [];
+  async function handleGenerate() {
+    await ai.generate({ disclosingParty, receivingParty, purpose, duration });
   }
-  const outline = buildOutline();
+  function assembleText() {
+    const lines = [title, ''];
+    sections.forEach((s, i) => {
+      lines.push(`${i + 1}. ${s.heading}`);
+      lines.push(s.content);
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(outline);
+      await navigator.clipboard.writeText(assembleText());
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -46,8 +34,9 @@ export default function NdaTemplateGenerator() {
     <div className="tool-page">
       <h1>NDA Template Generator</h1>
       <p className="tool-description">
-        Fill in the basic details below to generate a structured non-disclosure agreement outline
-        with your entered values filled in. Runs entirely in your browser.
+        Fill in the basic details below and click "Generate with AI" for a genuinely AI-written,
+        plain-language non-disclosure agreement outline tailored to your details - free, no account
+        needed (rate-limited to keep it free for everyone).
       </p>
       <div className="tool-error">
         <strong>Not legal advice:</strong> This is an educational template only, not a legally
@@ -72,14 +61,36 @@ export default function NdaTemplateGenerator() {
         </div>
       </div>
       <div className="tool-controls">
-        <button type="button" onClick={handleCopy}>
-          {copied ? 'Copied!' : 'Copy outline'}
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || !disclosingParty.trim() || !receivingParty.trim()}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={handleCopy} disabled={!sections.length}>
+          {copied ? 'Copied!' : 'Copy all'}
+        </button>
+        <button type="button" onClick={() => window.print()} disabled={!sections.length}>
+          Print
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
         </button>
       </div>
-      <div className="tool-panel">
-        <label>Generated outline</label>
-        <textarea readOnly value={outline} style={{ minHeight: 320 }} />
-      </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
+      {sections.length > 0 && (
+        <div className="tool-panel">
+          {title && <h2>{title}</h2>}
+          {sections.map((s, i) => (
+            <div key={i} style={{ marginBottom: '16px' }}>
+              <h3>
+                {i + 1}. {s.heading}
+              </h3>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{s.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

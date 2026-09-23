@@ -1,10 +1,28 @@
-import { useState } from 'react';
-const QR_API = 'https://api.qrserver.com/v1/create-qr-code/';
+import { useEffect, useState } from 'react';
 export default function QrCodeGenerator() {
   const [text, setText] = useState('https://example.com');
   const [size, setSize] = useState(300);
-  const encoded = encodeURIComponent(text || '');
-  const src = text ? `${QR_API}?size=${size}x${size}&data=${encoded}` : '';
+  const [src, setSrc] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/qr-code-generator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { text, size } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setSrc(data.src);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [text, size]);
   return (
     <div className="tool-page">
       <h1>QR Code Generator</h1>
@@ -16,6 +34,7 @@ export default function QrCodeGenerator() {
         <label htmlFor="qr-input">Text or URL</label>
         <input id="qr-input" type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="https://example.com" />
       </div>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Size:

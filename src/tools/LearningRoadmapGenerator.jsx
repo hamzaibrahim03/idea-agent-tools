@@ -1,68 +1,65 @@
 import { useState } from 'react';
-const ROADMAPS = {
-  'Frontend Developer': {
-    beginner: ['HTML & CSS fundamentals', 'JavaScript basics', 'Git & GitHub', 'Responsive design'],
-    intermediate: ['A JavaScript framework (React, Vue, or Svelte)', 'CSS layout systems (Flexbox, Grid)', 'REST APIs & fetch', 'Browser dev tools & debugging'],
-    advanced: ['State management', 'Testing (unit & integration)', 'Performance optimization', 'Accessibility (a11y)', 'Build tools & bundlers']
-  },
-  'Data Analyst': {
-    beginner: ['Excel/Google Sheets fundamentals', 'Basic statistics', 'SQL basics'],
-    intermediate: ['Data visualization (Tableau/Power BI)', 'Python or R for data analysis', 'Intermediate SQL (joins, window functions)'],
-    advanced: ['A/B testing & experiment design', 'Predictive modeling basics', 'Data storytelling & dashboards', 'ETL pipeline concepts']
-  },
-  'Product Manager': {
-    beginner: ['Product lifecycle basics', 'User research fundamentals', 'Writing user stories'],
-    intermediate: ['Roadmapping & prioritization frameworks', 'Agile/Scrum practices', 'Basic SQL for product analytics', 'Stakeholder communication'],
-    advanced: ['Go-to-market strategy', 'Pricing & monetization', 'Cross-functional leadership', 'Advanced analytics & experimentation']
-  },
-  'Backend Developer': {
-    beginner: ['A programming language (Node.js, Python, or Java)', 'Databases & SQL basics', 'HTTP & REST fundamentals'],
-    intermediate: ['API design', 'Authentication & authorization', 'Caching strategies', 'Testing backend services'],
-    advanced: ['System design & scalability', 'Message queues & async processing', 'Containerization (Docker)', 'CI/CD pipelines']
-  },
-  'UX Designer': {
-    beginner: ['Design fundamentals (color, typography, layout)', 'User research basics', 'Wireframing'],
-    intermediate: ['Prototyping tools (Figma)', 'Usability testing', 'Design systems'],
-    advanced: ['Interaction design patterns', 'Accessibility in design', 'Design leadership & critique facilitation']
-  }
-};
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
+const ROLES = ['Frontend Developer', 'Data Analyst', 'Product Manager', 'Backend Developer', 'UX Designer'];
 export default function LearningRoadmapGenerator() {
   const [role, setRole] = useState('Frontend Developer');
-  const roadmap = ROADMAPS[role];
+  const ai = useAiGenerate('learning-roadmap', 'Learning Roadmap Generator');
+  const roadmap = ai.result;
+  async function handleGenerate() {
+    await ai.generate({ role });
+  }
   return (
     <div className="tool-page">
       <h1>Learning Roadmap Generator</h1>
       <p className="tool-description">
-        Pick a target role to see a built-in, ordered list of typical skills and topics to learn
-        for that path, grouped by beginner, intermediate, and advanced stages. This is a curated
-        reference roadmap, not a personalized AI-generated plan. Runs entirely in your browser.
+        Pick a target role and click "Generate with AI" for a genuinely AI-generated learning
+        roadmap - ordered stages of topics to learn for that path, with estimated duration for
+        each - free, no account needed (rate-limited to keep it free for everyone).
       </p>
       <div className="tool-controls">
         <label>
           Target role:
           <select value={role} onChange={(e) => setRole(e.target.value)}>
-            {Object.keys(ROADMAPS).map((r) => (
+            {ROLES.map((r) => (
               <option key={r} value={r}>
                 {r}
               </option>
             ))}
           </select>
         </label>
+        <button type="button" onClick={handleGenerate} disabled={ai.loading}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
+        </button>
       </div>
-      {['beginner', 'intermediate', 'advanced'].map((stage) => (
-        <div key={stage}>
-          <h2 style={{ fontSize: 16, margin: '16px 0 8px', textTransform: 'capitalize' }}>{stage}</h2>
-          <ul className="uuid-list">
-            {roadmap[stage].map((item, i) => (
-              <li key={i}>
-                <span>
-                  {i + 1}. {item}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
+      {roadmap && (
+        <>
+          <h2 style={{ fontSize: 18, margin: '16px 0 8px' }}>{roadmap.title}</h2>
+          {(roadmap.stages || []).map((stage, i) => (
+            <div key={i}>
+              <h3 style={{ fontSize: 16, margin: '16px 0 8px' }}>
+                {stage.stage} {stage.estimatedDuration ? `(${stage.estimatedDuration})` : ''}
+              </h3>
+              <ul className="uuid-list">
+                {(stage.topics || []).map((topic, j) => (
+                  <li key={j}>
+                    <span>
+                      {j + 1}. {topic}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }

@@ -1,14 +1,6 @@
-import { useMemo, useState } from 'react';
-function buildNewsletter({ name, topic, sections, cta }) {
-  const n = name.trim() || '[Newsletter Name]';
-  const t = topic.trim() || '[main topic]';
-  const c = cta.trim() || '[call-to-action]';
-  const sectionText = sections
-    .filter((s) => s.headline.trim() || s.summary.trim())
-    .map((s, i) => `${i + 1}. ${s.headline.trim() || `[Section ${i + 1} headline]`}\n   ${s.summary.trim() || '[Short summary]'}`)
-    .join('\n\n');
-  return `${n}\n\nThis issue: ${t}\n\n${sectionText || '[Add content sections below]'}\n\n---\n${c}`;
-}
+import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function NewsletterTemplateGenerator() {
   const [name, setName] = useState('');
   const [topic, setTopic] = useState('');
@@ -18,6 +10,8 @@ export default function NewsletterTemplateGenerator() {
     { headline: '', summary: '' }
   ]);
   const [copied, setCopied] = useState(false);
+  const ai = useAiGenerate('newsletter-template', 'Newsletter Template Generator');
+  const result = ai.result;
   function updateSection(index, field, value) {
     setSections((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
   }
@@ -25,7 +19,25 @@ export default function NewsletterTemplateGenerator() {
     if (sections.length >= 3) return;
     setSections((prev) => [...prev, { headline: '', summary: '' }]);
   }
-  const output = useMemo(() => buildNewsletter({ name, topic, sections, cta }), [name, topic, sections, cta]);
+  const sectionNotes = sections
+    .filter((s) => s.headline.trim() || s.summary.trim())
+    .map((s) => `${s.headline.trim()}: ${s.summary.trim()}`)
+    .join('; ');
+  async function handleGenerate() {
+    await ai.generate({ name, topic, sections: sectionNotes, cta });
+  }
+  const output = result
+    ? [
+        result.subject && `Subject: ${result.subject}`,
+        result.headline,
+        '',
+        ...(result.sections || []).map((s) => `${s.heading}\n${s.content}`),
+        '',
+        result.callToAction
+      ]
+        .filter((line, i, arr) => line !== undefined && !(line === '' && arr[i - 1] === ''))
+        .join('\n\n')
+    : '';
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(output);
@@ -38,9 +50,9 @@ export default function NewsletterTemplateGenerator() {
     <div className="tool-page">
       <h1>Newsletter Template Generator</h1>
       <p className="tool-description">
-        Fill in your newsletter name, main topic, 2-3 content sections, and a call-to-action to
-        assemble a structured newsletter layout. This is a template generator, not AI-written
-        content - edit the result to fit your voice. Runs entirely in your browser.
+        Fill in your newsletter name, main topic, 2-3 content sections, and a call-to-action, then
+        click "Generate with AI" for genuinely AI-written newsletter copy - free, no account needed
+        (rate-limited to keep it free for everyone). Edit the result to fit your voice before sending.
       </p>
       <div className="tool-grid">
         <div className="tool-panel">
@@ -86,11 +98,23 @@ export default function NewsletterTemplateGenerator() {
         <input id="news-cta" type="text" value={cta} onChange={(e) => setCta(e.target.value)} placeholder="e.g. Reply and let us know what you think" />
       </div>
       <div className="tool-controls">
-        <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy newsletter'}</button>
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || !topic.trim()}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={handleCopy} disabled={!output}>
+          {copied ? 'Copied!' : 'Copy newsletter'}
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
+        </button>
       </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
       <div className="tool-panel">
         <label htmlFor="news-output">Generated newsletter</label>
-        <textarea id="news-output" value={output} readOnly style={{ minHeight: 260 }} />
+        <textarea id="news-output" value={output} readOnly placeholder="Fill in the fields above and click Generate with AI" style={{ minHeight: 260 }} />
       </div>
     </div>
   );

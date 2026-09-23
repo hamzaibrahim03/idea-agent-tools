@@ -1,36 +1,14 @@
-import { useMemo, useState } from 'react';
-function buildSop({ procedureName, purpose, role, steps }) {
-  const name = procedureName.trim() || '[Procedure Name]';
-  const purposeText = purpose.trim() || '[State the purpose of this procedure]';
-  const roleText = role.trim() || '[Responsible role/title]';
-  const stepLines = steps
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s, i) => `${i + 1}. ${s}`);
-  const lines = [
-    `Standard Operating Procedure: ${name}`,
-    '',
-    `Responsible Role: ${roleText}`,
-    `Date Prepared: [date]`,
-    `Version: 1.0`,
-    '',
-    'Purpose',
-    purposeText,
-    '',
-    'Procedure Steps',
-    ...(stepLines.length ? stepLines : ['[Add step-by-step instructions]']),
-    '',
-    'Notes',
-    '[Add any exceptions, safety notes, or references here]'
-  ];
-  return lines.join('\n');
-}
+import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function SopTemplateGenerator() {
   const [procedureName, setProcedureName] = useState('');
   const [purpose, setPurpose] = useState('');
   const [role, setRole] = useState('');
   const [steps, setSteps] = useState(['']);
   const [copied, setCopied] = useState(false);
+  const ai = useAiGenerate('sop-template', 'SOP Template Generator');
+  const sop = ai.result;
   function updateStep(index, value) {
     setSteps((prev) => prev.map((s, i) => (i === index ? value : s)));
   }
@@ -40,13 +18,26 @@ export default function SopTemplateGenerator() {
   function removeStep(index) {
     setSteps((prev) => prev.filter((_, i) => i !== index));
   }
-  const sop = useMemo(
-    () => buildSop({ procedureName, purpose, role, steps }),
-    [procedureName, purpose, role, steps]
-  );
+  async function handleGenerate() {
+    const stepList = steps.map((s) => s.trim()).filter(Boolean).join('; ');
+    await ai.generate({ procedureName, purpose, role, steps: stepList });
+  }
+  function buildText() {
+    if (!sop) return '';
+    const lines = [
+      `Standard Operating Procedure: ${sop.title || procedureName}`,
+      '',
+      'Purpose',
+      sop.purpose || '',
+      '',
+      'Procedure Steps',
+      ...(sop.steps || []).map((s) => `${s.stepNumber}. ${s.instruction}`)
+    ];
+    return lines.join('\n');
+  }
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(sop);
+      await navigator.clipboard.writeText(buildText());
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -56,20 +47,29 @@ export default function SopTemplateGenerator() {
     <div className="tool-page">
       <h1>SOP Template Generator</h1>
       <p className="tool-description">
-        Fill in a procedure name, purpose, step-by-step instructions, and the responsible role to
-        assemble a structured Standard Operating Procedure document template. This is a starting
-        template to edit and adapt - not a certified or industry-specific SOP. Runs entirely in your
-        browser.
+        Fill in a procedure name, purpose, step-by-step instructions, and the responsible role,
+        then click "Generate with AI" for a genuinely AI-generated Standard Operating Procedure
+        document - free, no account needed (rate-limited to keep it free for everyone).
       </p>
       <div className="tool-controls">
         <button type="button" onClick={addStep}>
           Add step
         </button>
-        <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy SOP'}</button>
-        <button type="button" onClick={() => window.print()}>
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || !procedureName.trim()}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button onClick={handleCopy} disabled={!sop}>{copied ? 'Copied!' : 'Copy SOP'}</button>
+        <button type="button" onClick={() => window.print()} disabled={!sop}>
           Print
         </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
+        </button>
       </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="sop-name">Procedure name</label>
@@ -101,10 +101,26 @@ export default function SopTemplateGenerator() {
           </div>
         ))}
       </div>
-      <div className="tool-panel">
-        <label htmlFor="sop-output">Generated SOP</label>
-        <textarea id="sop-output" value={sop} readOnly style={{ minHeight: 260, fontFamily: 'var(--mono)' }} />
-      </div>
+      {sop && (
+        <>
+          <h2 style={{ fontSize: 18, margin: '16px 0 8px' }}>{sop.title}</h2>
+          {sop.purpose && (
+            <div className="tool-panel">
+              <label>Purpose</label>
+              <p style={{ margin: 0 }}>{sop.purpose}</p>
+            </div>
+          )}
+          <ul className="uuid-list">
+            {(sop.steps || []).map((s, i) => (
+              <li key={i}>
+                <span>
+                  {s.stepNumber ?? i + 1}. {s.instruction}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }

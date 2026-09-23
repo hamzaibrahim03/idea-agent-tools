@@ -1,37 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 const TITLE_LIMIT = 60;
 const DESC_LIMIT = 160;
-function buildSuggestions({ keyword, topic }) {
-  const k = keyword.trim();
-  const t = topic.trim();
-  if (!k && !t) return { titles: [], descriptions: [] };
-  const subject = t || k;
-  const kw = k || t;
-  const titles = [
-    `${kw} - ${subject}`,
-    `${subject} | Complete Guide to ${kw}`,
-    `${kw}: Everything You Need to Know`,
-    `Best ${kw} Tips for ${subject}`
-  ].filter((s, i, arr) => arr.indexOf(s) === i);
-  const descriptions = [
-    `Learn about ${kw} and ${subject}. Explore practical tips, key details, and everything you need to get started today.`,
-    `Discover ${subject} with our guide to ${kw} - clear explanations, practical advice, and answers to common questions.`,
-    `Looking for ${kw}? This guide covers ${subject} in detail, with actionable tips you can use right away.`
-  ];
-  return { titles, descriptions };
-}
 export default function SeoTitleMetaGenerator() {
   const [keyword, setKeyword] = useState('');
   const [topic, setTopic] = useState('');
-  const { titles, descriptions } = useMemo(() => buildSuggestions({ keyword, topic }), [keyword, topic]);
+  const ai = useAiGenerate('seo-title-meta-description', 'SEO Title & Meta Description Generator');
+  const titles = ai.result?.titles || [];
+  const descriptions = ai.result?.metaDescriptions || [];
+  async function handleGenerate() {
+    await ai.generate({ keyword, topic });
+  }
   return (
     <div className="tool-page">
       <h1>SEO Title &amp; Meta Description Generator</h1>
       <p className="tool-description">
-        Enter a target keyword and page topic to get SEO-friendly title tag and meta description
-        suggestions, with live character counts against the standard limits (titles ~50-60 characters,
-        descriptions ~150-160 characters) and truncation warnings. These are template suggestions to
-        edit and refine, not real search-ranking data. Runs entirely in your browser.
+        Enter a target keyword and page topic, then click "Generate with AI" for genuinely
+        AI-generated SEO title tag and meta description suggestions, with live character counts
+        against the standard limits (titles ~50-60 characters, descriptions ~150-160 characters) and
+        truncation warnings - free, no account needed (rate-limited to keep it free for everyone).
       </p>
       <div className="tool-grid">
         <div className="tool-panel">
@@ -55,17 +43,29 @@ export default function SeoTitleMetaGenerator() {
           />
         </div>
       </div>
+      <div className="tool-controls">
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || (!keyword.trim() && !topic.trim())}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
+        </button>
+      </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
       {titles.length === 0 ? (
-        <p className="tool-placeholder">Enter a keyword or topic to generate suggestions.</p>
+        <p className="tool-placeholder">Enter a keyword or topic and click Generate with AI.</p>
       ) : (
         <>
           <div className="tool-panel">
             <label>Title tag suggestions</label>
             <ul className="uuid-list">
-              {titles.map((title) => {
+              {titles.map((title, i) => {
                 const over = title.length > TITLE_LIMIT;
                 return (
-                  <li key={title} style={{ alignItems: 'flex-start' }}>
+                  <li key={i} style={{ alignItems: 'flex-start' }}>
                     <span>{title}</span>
                     <span className={over ? 'tool-error-inline' : ''}>
                       {title.length}/{TITLE_LIMIT}
@@ -79,10 +79,10 @@ export default function SeoTitleMetaGenerator() {
           <div className="tool-panel">
             <label>Meta description suggestions</label>
             <ul className="uuid-list">
-              {descriptions.map((desc) => {
+              {descriptions.map((desc, i) => {
                 const over = desc.length > DESC_LIMIT;
                 return (
-                  <li key={desc} style={{ alignItems: 'flex-start' }}>
+                  <li key={i} style={{ alignItems: 'flex-start' }}>
                     <span>{desc}</span>
                     <span className={over ? 'tool-error-inline' : ''}>
                       {desc.length}/{DESC_LIMIT}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 const DEFAULT_CATEGORIES = [
   { name: 'Flights', amount: '' },
   { name: 'Hotels', amount: '' },
@@ -9,6 +9,27 @@ const DEFAULT_CATEGORIES = [
 export default function TravelBudgetCalculator() {
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [tripDays, setTripDays] = useState('');
+  const [result, setResult] = useState({ total: 0, perDay: null, days: null, breakdown: [] });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/travel-budget-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { categories, tripDays } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [categories, tripDays]);
   function updateName(index, value) {
     setCategories((cats) => cats.map((c, i) => (i === index ? { ...c, name: value } : c)));
   }
@@ -21,10 +42,7 @@ export default function TravelBudgetCalculator() {
   function removeCategory(index) {
     setCategories((cats) => cats.filter((_, i) => i !== index));
   }
-  const parsed = categories.map((c) => ({ ...c, value: parseFloat(c.amount) || 0 }));
-  const total = parsed.reduce((sum, c) => sum + c.value, 0);
-  const days = parseFloat(tripDays);
-  const perDay = days > 0 ? total / days : null;
+  const { total, perDay, days, breakdown } = result;
   return (
     <div className="tool-page">
       <h1>Travel Budget Calculator</h1>
@@ -33,6 +51,7 @@ export default function TravelBudgetCalculator() {
         any categories you add - to see your total trip budget and a percentage breakdown. All
         amounts are figures you enter yourself. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <button onClick={addCategory}>Add category</button>
         <label>
@@ -81,13 +100,11 @@ export default function TravelBudgetCalculator() {
               <strong>Average per day:</strong> {perDay.toFixed(2)} ({days} day{days === 1 ? '' : 's'})
             </span>
           )}
-          {parsed
-            .filter((c) => c.value > 0)
-            .map((c, i) => (
-              <span key={i}>
-                {c.name}: {c.value.toFixed(2)} ({((c.value / total) * 100).toFixed(1)}%)
-              </span>
-            ))}
+          {breakdown.map((c, i) => (
+            <span key={i}>
+              {c.name}: {c.value.toFixed(2)} ({c.percent.toFixed(1)}%)
+            </span>
+          ))}
         </div>
       )}
     </div>

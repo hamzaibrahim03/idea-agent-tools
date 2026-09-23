@@ -1,13 +1,13 @@
-import { useState } from 'react';
-function sortTimes(times) {
-  return [...times].sort((a, b) => a.localeCompare(b));
-}
+import { useEffect, useState } from 'react';
 export default function MedicationScheduleOrganizer() {
   const [medications, setMedications] = useState([]);
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
   const [timesPerDay, setTimesPerDay] = useState('1');
   const [timesInput, setTimesInput] = useState('08:00');
+  const [byTime, setByTime] = useState({});
+  const [sortedTimeKeys, setSortedTimeKeys] = useState([]);
+  const [fetchError, setFetchError] = useState('');
   function addMedication() {
     if (!name.trim() || !timesInput) return;
     const times = timesInput
@@ -23,26 +23,41 @@ export default function MedicationScheduleOrganizer() {
   function removeMedication(id) {
     setMedications((prev) => prev.filter((m) => m.id !== id));
   }
-  const byTime = {};
-  medications.forEach((m) => {
-    m.times.forEach((t) => {
-      if (!byTime[t]) byTime[t] = [];
-      byTime[t].push(m);
-    });
-  });
-  const sortedTimeKeys = sortTimes(Object.keys(byTime));
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setFetchError('');
+      fetch('/api/tools/medication-schedule-organizer', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { medications } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setFetchError(data.error);
+          else {
+            setByTime(data.byTime || {});
+            setSortedTimeKeys(data.sortedTimeKeys || []);
+          }
+        })
+        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [medications]);
   return (
     <div className="tool-page">
       <h1>Medication Schedule Organizer</h1>
       <p className="tool-description">
         Add your medications with dosage and the specific times you take them, and see a simple
-        daily schedule of what to take when. Runs entirely in your browser.
+        daily schedule of what to take when.
       </p>
       <div className="tool-error">
         <strong>Not medical advice:</strong> This is an organizational aid only, built from what
         you enter. It does not check for interactions, verify dosages, or replace your doctor's or
         pharmacist's instructions. Always follow the actual guidance on your prescription label.
       </div>
+      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="med-name">Medication name</label>

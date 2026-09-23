@@ -1,19 +1,29 @@
-import { useState } from 'react';
-function slugify(text, separator) {
-  return text
-    .toString()
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, separator)
-    .replace(new RegExp(`^\\${separator}+|\\${separator}+$`, 'g'), '');
-}
+import { useEffect, useState } from 'react';
 export default function SlugGenerator() {
   const [input, setInput] = useState('');
   const [separator, setSeparator] = useState('-');
   const [copied, setCopied] = useState(false);
-  const slug = input ? slugify(input, separator) : '';
+  const [slug, setSlug] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/slug-generator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { input, separator } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setSlug(data.slug);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [input, separator]);
   async function handleCopy() {
     if (!slug) return;
     try {
@@ -30,6 +40,7 @@ export default function SlugGenerator() {
         Convert text into a clean, URL-safe slug - lowercased, accents stripped, and non-alphanumeric
         characters replaced with a separator. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Separator:

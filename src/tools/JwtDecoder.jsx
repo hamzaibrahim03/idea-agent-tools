@@ -1,37 +1,45 @@
-import { useState } from 'react';
-function base64UrlDecode(str) {
-  const padded = str.replace(/-/g, '+').replace(/_/g, '/').padEnd(str.length + ((4 - (str.length % 4)) % 4), '=');
-  const binary = atob(padded);
-  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-  return new TextDecoder('utf-8').decode(bytes);
-}
-function decodeJwt(token) {
-  const parts = token.trim().split('.');
-  if (parts.length < 2) {
-    throw new Error('Not a valid JWT (expected header.payload.signature)');
-  }
-  const header = JSON.parse(base64UrlDecode(parts[0]));
-  const payload = JSON.parse(base64UrlDecode(parts[1]));
-  return { header, payload, signature: parts[2] || '' };
-}
+import { useEffect, useState } from 'react';
 export default function JwtDecoder() {
   const [input, setInput] = useState('');
-  let decoded = null;
-  let error = '';
-  if (input.trim()) {
-    try {
-      decoded = decodeJwt(input);
-    } catch (e) {
-      error = e.message;
-    }
-  }
+  const [decoded, setDecoded] = useState(null);
+  const [error, setError] = useState('');
+  const [fetchError, setFetchError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!input.trim()) {
+        setDecoded(null);
+        setError('');
+        return;
+      }
+      setFetchError('');
+      fetch('/api/tools/jwt-decoder', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { input } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) {
+            setError(data.error);
+            setDecoded(null);
+          } else {
+            setError('');
+            setDecoded(data);
+          }
+        })
+        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [input]);
   return (
     <div className="tool-page">
       <h1>JWT Decoder</h1>
       <p className="tool-description">
-        Paste a JSON Web Token to inspect its header and payload. Decoding happens entirely in
-        your browser - the token is never sent anywhere, and the signature is not verified.
+        Paste a JSON Web Token to inspect its header and payload. The signature is not verified.
       </p>
+      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-panel">
         <label htmlFor="jwt-input">Token</label>
         <textarea

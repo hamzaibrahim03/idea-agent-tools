@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function TermsConditionsGenerator() {
   const [businessName, setBusinessName] = useState('');
   const [offering, setOffering] = useState('');
@@ -6,62 +8,30 @@ export default function TermsConditionsGenerator() {
   const [accountsRequired, setAccountsRequired] = useState(true);
   const [paymentsAccepted, setPaymentsAccepted] = useState(true);
   const [copied, setCopied] = useState(false);
-  function buildTerms() {
-    const name = businessName || '[Business/Website Name]';
-    const what = offering || '[products/services offered]';
-    const email = contactEmail || '[contact email]';
-    const sections = [
-      `TERMS AND CONDITIONS FOR ${name.toUpperCase()}`,
-      '',
-      '1. Acceptance of Terms',
-      `By accessing or using ${name}, you agree to be bound by these Terms and Conditions. If you do not agree, do not use our ${what}.`,
-      '',
-      '2. Description of Service',
-      `${name} provides ${what}. We reserve the right to modify or discontinue any part of the service at any time.`
-    ];
-    if (accountsRequired) {
-      sections.push(
-        '',
-        '3. User Accounts',
-        'Certain features require creating an account. You are responsible for maintaining the confidentiality of your account credentials and for all activity under your account.'
-      );
-    }
-    if (paymentsAccepted) {
-      sections.push(
-        '',
-        `${accountsRequired ? '4' : '3'}. Payments`,
-        'Prices, billing terms, and refund policies for any paid offerings should be described here, including accepted payment methods and any recurring billing terms.'
-      );
-    }
-    sections.push(
-      '',
-      '5. User Responsibilities',
-      'You agree to use the service lawfully and not to misuse, disrupt, or attempt unauthorized access to the service.',
-      '',
-      '6. Intellectual Property',
-      `All content, trademarks, and materials on ${name} are owned by us or our licensors unless otherwise stated.`,
-      '',
-      '7. Limitation of Liability',
-      `${name} is provided "as is" without warranties of any kind. To the fullest extent permitted by law, we are not liable for indirect, incidental, or consequential damages arising from your use of the service.`,
-      '',
-      '8. Termination',
-      'We may suspend or terminate access to the service for violations of these terms.',
-      '',
-      '9. Governing Law',
-      '[Governing law / jurisdiction placeholder]',
-      '',
-      '10. Changes to These Terms',
-      'We may update these terms from time to time; continued use of the service after changes constitutes acceptance.',
-      '',
-      '11. Contact',
-      `Questions about these terms can be sent to ${email}.`
-    );
-    return sections.join('\n');
+  const ai = useAiGenerate('terms-and-conditions', 'Terms & Conditions Generator');
+  const title = ai.result?.title || '';
+  const sections = ai.result?.sections || [];
+  async function handleGenerate() {
+    await ai.generate({
+      businessName,
+      offering,
+      contactEmail,
+      accountsRequired: accountsRequired ? 'yes' : 'no',
+      paymentsAccepted: paymentsAccepted ? 'yes' : 'no'
+    });
   }
-  const terms = buildTerms();
+  function assembleText() {
+    const lines = [title, ''];
+    sections.forEach((s, i) => {
+      lines.push(`${i + 1}. ${s.heading}`);
+      lines.push(s.content);
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(terms);
+      await navigator.clipboard.writeText(assembleText());
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -71,9 +41,10 @@ export default function TermsConditionsGenerator() {
     <div className="tool-page">
       <h1>Terms &amp; Conditions Generator</h1>
       <p className="tool-description">
-        Fill in your business details below to assemble a starting Terms and Conditions template
-        with common sections - acceptance of terms, user responsibilities, limitation of liability,
-        and a governing law placeholder. Runs entirely in your browser.
+        Fill in your business details below and click "Generate with AI" for a genuinely AI-written
+        starter Terms and Conditions with common sections - acceptance of terms, user
+        responsibilities, limitation of liability, and more - free, no account needed (rate-limited
+        to keep it free for everyone).
       </p>
       <div className="tool-error">
         <strong>Not legal advice:</strong> This is a starting template only. It must be reviewed
@@ -105,14 +76,36 @@ export default function TermsConditionsGenerator() {
         </label>
       </div>
       <div className="tool-controls">
-        <button type="button" onClick={handleCopy}>
-          {copied ? 'Copied!' : 'Copy terms'}
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || !businessName.trim()}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={handleCopy} disabled={!sections.length}>
+          {copied ? 'Copied!' : 'Copy all'}
+        </button>
+        <button type="button" onClick={() => window.print()} disabled={!sections.length}>
+          Print
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
         </button>
       </div>
-      <div className="tool-panel">
-        <label>Generated Terms &amp; Conditions</label>
-        <textarea readOnly value={terms} style={{ minHeight: 380 }} />
-      </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
+      {sections.length > 0 && (
+        <div className="tool-panel">
+          {title && <h2>{title}</h2>}
+          {sections.map((s, i) => (
+            <div key={i} style={{ marginBottom: '16px' }}>
+              <h3>
+                {i + 1}. {s.heading}
+              </h3>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{s.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

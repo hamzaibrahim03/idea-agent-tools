@@ -20,7 +20,9 @@ export const CATEGORIES = [
   { value: 'restaurant', label: 'Restaurant / Food Business' },
   { value: 'travel', label: 'Travel' },
   { value: 'design', label: 'Design' },
-  { value: 'documents', label: 'Document Tools' }
+  { value: 'documents', label: 'Document Tools' },
+  { value: 'vehicle', label: 'Vehicle / Automotive' },
+  { value: 'energy', label: 'Energy / Solar' }
 ];
 import JsonFormatter from './tools/JsonFormatter.jsx';
 import RegexTester from './tools/RegexTester.jsx';
@@ -2064,9 +2066,9 @@ export const TOOLS = [
     slug: 'business-name-generator',
     category: 'business',
     name: 'Business Name Generator',
-    description: 'Generate business name ideas from a keyword using common naming patterns. Not AI-generated; check trademark availability separately.',
+    description: 'Generate AI-powered business name ideas from a keyword. Check trademark availability separately.',
     seoDescription:
-      'Free online Business Name Generator. Generate business name ideas from a keyword using common naming patterns. Not AI-generated; check trademark availability separately. Runs entirely in your browser.',
+      'Free AI Business Name Generator. Generate genuinely AI-written business name ideas from a keyword. Check trademark availability separately.',
     component: BusinessNameGenerator
   },
   {
@@ -2163,9 +2165,9 @@ export const TOOLS = [
     slug: 'cover-letter-generator',
     category: 'career',
     name: 'Cover Letter Generator',
-    description: 'Fill in your details to assemble a structured cover letter template.',
+    description: 'Fill in your details and get a genuinely AI-written cover letter tailored to the role.',
     seoDescription:
-      'Free online Cover Letter Generator. Fill in your details to assemble a structured cover letter template. Runs entirely in your browser.',
+      'Free AI Cover Letter Generator. Fill in your details to get a genuinely AI-written cover letter tailored to the job and company.',
     component: CoverLetterGenerator
   },
   {
@@ -2541,9 +2543,9 @@ export const TOOLS = [
     slug: 'interview-question-generator',
     category: 'career',
     name: 'Interview Question Generator',
-    description: 'Browse a curated bank of common interview questions by job role.',
+    description: 'Generate AI-written interview questions tailored to a job role and level.',
     seoDescription:
-      'Free online Interview Question Generator. Browse a curated bank of common interview questions by job role. Runs entirely in your browser.',
+      'Free AI Interview Question Generator. Generate genuinely AI-written interview questions tailored to a job role and level.',
     component: InterviewQuestionGenerator
   },
   {
@@ -2955,9 +2957,9 @@ export const TOOLS = [
     slug: 'product-name-generator',
     category: 'ecommerce',
     name: 'Product Name Generator',
-    description: 'Generate product name ideas from a keyword using common naming patterns, not real trend data.',
+    description: 'Generate AI-powered product name ideas from a keyword or description.',
     seoDescription:
-      'Free online Product Name Generator. Generate product name ideas from a keyword using common naming patterns, not real trend data. Runs entirely in your browser.',
+      'Free AI Product Name Generator. Generate genuinely AI-written product name ideas from a keyword or description.',
     component: ProductNameGenerator
   },
   {

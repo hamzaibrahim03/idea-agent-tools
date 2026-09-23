@@ -1,18 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 export default function ProductionCostCalculator() {
   const [material, setMaterial] = useState('4.50');
   const [labor, setLabor] = useState('2.25');
   const [overhead, setOverhead] = useState('1.10');
   const [units, setUnits] = useState('1000');
-  const materialNum = Number(material);
-  const laborNum = Number(labor);
-  const overheadNum = Number(overhead);
-  const unitsNum = Number(units);
-  const valid =
-    [materialNum, laborNum, overheadNum].every((n) => Number.isFinite(n) && n >= 0) &&
-    Number.isFinite(unitsNum) && unitsNum > 0;
-  const costPerUnit = valid ? materialNum + laborNum + overheadNum : null;
-  const totalCost = valid ? costPerUnit * unitsNum : null;
+  const [result, setResult] = useState({ valid: false, costPerUnit: null, totalCost: null });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/production-cost-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { material, labor, overhead, units } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [material, labor, overhead, units]);
+  const { valid, costPerUnit, totalCost } = result;
   return (
     <div className="tool-page">
       <h1>Production Cost Calculator</h1>
@@ -38,12 +51,13 @@ export default function ProductionCostCalculator() {
           <input id="pcc-units" type="number" min={0} value={units} onChange={(e) => setUnits(e.target.value)} />
         </div>
       </div>
-      {!valid && (
+      {error && <div className="agent-error">{error}</div>}
+      {!error && !valid && (
         <div className="tool-error">
           <strong>Error:</strong> Enter non-negative costs and a positive number of units.
         </div>
       )}
-      {valid && (
+      {!error && valid && (
         <div className="timestamp-result">
           <div>
             <strong>Cost per unit:</strong> ${costPerUnit.toFixed(2)}

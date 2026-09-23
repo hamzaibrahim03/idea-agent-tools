@@ -1,23 +1,30 @@
-import { useState } from 'react';
-function reverseChars(text) {
-  return [...text].reverse().join('');
-}
-function reverseWords(text) {
-  return text.split(/(\s+)/).reverse().join('');
-}
-function reverseLines(text) {
-  return text.split('\n').reverse().join('\n');
-}
-const MODES = {
-  Characters: reverseChars,
-  Words: reverseWords,
-  Lines: reverseLines
-};
+import { useEffect, useState } from 'react';
+const MODE_OPTIONS = ['Characters', 'Words', 'Lines'];
 export default function TextReverser() {
   const [input, setInput] = useState('');
   const [mode, setMode] = useState('Characters');
   const [copied, setCopied] = useState(false);
-  const output = input ? MODES[mode](input) : '';
+  const [output, setOutput] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/text-reverser', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { input, mode } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setOutput(data.output);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [input, mode]);
   async function handleCopy() {
     if (!output) return;
     try {
@@ -33,11 +40,12 @@ export default function TextReverser() {
       <p className="tool-description">
         Reverse text by character, word, or line. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Mode:
           <select value={mode} onChange={(e) => setMode(e.target.value)}>
-            {Object.keys(MODES).map((m) => (
+            {MODE_OPTIONS.map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>

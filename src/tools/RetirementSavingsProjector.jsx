@@ -1,35 +1,34 @@
-import { useState } from 'react';
-function projectRetirement(currentSavings, monthlyContribution, annualRatePercent, years) {
-  const r = annualRatePercent / 100 / 12;
-  const months = years * 12;
-  const lumpSumGrowth = currentSavings * (1 + r) ** months;
-  const contributionGrowth =
-    r === 0 ? monthlyContribution * months : monthlyContribution * (((1 + r) ** months - 1) / r);
-  const projectedBalance = lumpSumGrowth + contributionGrowth;
-  const totalContributed = currentSavings + monthlyContribution * months;
-  const totalGrowth = projectedBalance - totalContributed;
-  return { projectedBalance, totalContributed, totalGrowth };
-}
+import { useEffect, useState } from 'react';
 export default function RetirementSavingsProjector() {
   const [currentAge, setCurrentAge] = useState('30');
   const [retirementAge, setRetirementAge] = useState('65');
   const [currentSavings, setCurrentSavings] = useState('20000');
   const [monthlyContribution, setMonthlyContribution] = useState('500');
   const [rate, setRate] = useState('7');
-  const currentAgeNum = Number(currentAge);
-  const retirementAgeNum = Number(retirementAge);
-  const currentSavingsNum = Number(currentSavings);
-  const monthlyNum = Number(monthlyContribution);
-  const rateNum = Number(rate);
-  const years = retirementAgeNum - currentAgeNum;
-  const valid =
-    Number.isFinite(currentAgeNum) && currentAgeNum > 0 &&
-    Number.isFinite(retirementAgeNum) &&
-    Number.isFinite(currentSavingsNum) && currentSavingsNum >= 0 &&
-    Number.isFinite(monthlyNum) && monthlyNum >= 0 &&
-    Number.isFinite(rateNum) && rateNum >= 0 &&
-    years > 0;
-  const result = valid ? projectRetirement(currentSavingsNum, monthlyNum, rateNum, years) : null;
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/retirement-savings-projector', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { currentAge, retirementAge, currentSavings, monthlyContribution, rate } })
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (cancelled) return;
+          if (d.error) setError(d.error);
+          else setData(d);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [currentAge, retirementAge, currentSavings, monthlyContribution, rate]);
+  const valid = data?.valid ?? false;
+  const years = data?.years ?? null;
+  const result = data?.result ?? null;
   return (
     <div className="tool-page">
       <h1>Retirement Savings Projector</h1>
@@ -66,6 +65,7 @@ export default function RetirementSavingsProjector() {
           <input type="number" min={0} step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} style={{ width: '90px' }} />
         </label>
       </div>
+      {error && <div className="agent-error">{error}</div>}
       {!valid && (
         <div className="tool-error">
           <strong>Error:</strong> Retirement age must be greater than current age, and other fields must be non-negative.

@@ -1,39 +1,31 @@
-import { useState } from 'react';
-const WORDS = (
-  'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut ' +
-  'labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco laboris ' +
-  'nisi aliquip ex ea commodo consequat duis aute irure in reprehenderit voluptate velit esse ' +
-  'cillum eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt culpa ' +
-  'qui officia deserunt mollit anim id est laborum'
-).split(' ');
-function randomWord() {
-  return WORDS[Math.floor(Math.random() * WORDS.length)];
-}
-function makeSentence() {
-  const length = 6 + Math.floor(Math.random() * 10);
-  const words = Array.from({ length }, randomWord);
-  const sentence = words.join(' ');
-  return sentence[0].toUpperCase() + sentence.slice(1) + '.';
-}
-function makeParagraph(sentenceCount) {
-  return Array.from({ length: sentenceCount }, makeSentence).join(' ');
-}
+import { useEffect, useState } from 'react';
 export default function LoremIpsumGenerator() {
   const [paragraphCount, setParagraphCount] = useState(3);
   const [startClassic, setStartClassic] = useState(true);
-  const [output, setOutput] = useState(() => generate(3, true));
+  const [output, setOutput] = useState('');
   const [copied, setCopied] = useState(false);
-  function generate(count, classic) {
-    const paragraphs = Array.from({ length: count }, () => makeParagraph(4 + Math.floor(Math.random() * 3)));
-    if (classic && paragraphs.length > 0) {
-      paragraphs[0] =
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ' +
-        paragraphs[0];
+  const [fetchError, setFetchError] = useState('');
+  async function generate() {
+    setFetchError('');
+    try {
+      const r = await fetch('/api/tools/lorem-ipsum-generator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { paragraphCount, startClassic } })
+      });
+      const data = await r.json();
+      if (data.error) setFetchError(data.error);
+      else setOutput(data.output || '');
+    } catch (e) {
+      setFetchError(e.message || 'Failed to compute');
     }
-    return paragraphs.join('\n\n');
   }
+  useEffect(() => {
+    generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   function handleGenerate() {
-    setOutput(generate(Math.max(1, Math.min(20, Number(paragraphCount) || 1)), startClassic));
+    generate();
     setCopied(false);
   }
   async function handleCopy() {
@@ -49,9 +41,9 @@ export default function LoremIpsumGenerator() {
     <div className="tool-page">
       <h1>Lorem Ipsum Generator</h1>
       <p className="tool-description">
-        Generate placeholder Lorem Ipsum text for mockups and layouts. Runs entirely in your
-        browser.
+        Generate placeholder Lorem Ipsum text for mockups and layouts.
       </p>
+      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <label>
           Paragraphs:

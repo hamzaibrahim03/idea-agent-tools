@@ -1,25 +1,11 @@
 import { useState } from 'react';
-function shuffle(items) {
-  const arr = [...items];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-function makeTeams(names, teamCount) {
-  const shuffled = shuffle(names);
-  const teams = Array.from({ length: teamCount }, () => []);
-  shuffled.forEach((name, i) => {
-    teams[i % teamCount].push(name);
-  });
-  return teams;
-}
 export default function RandomTeamGenerator() {
   const [input, setInput] = useState('Alex\nJordan\nTaylor\nMorgan\nCasey\nRiley\nJamie\nDrew');
   const [teamCount, setTeamCount] = useState(2);
   const [teams, setTeams] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const names = input
     .split('\n')
     .map((n) => n.trim())
@@ -27,7 +13,20 @@ export default function RandomTeamGenerator() {
   const count = Math.min(Math.max(Number(teamCount) || 1, 1), Math.max(names.length, 1));
   function handleGenerate() {
     if (names.length === 0) return;
-    setTeams(makeTeams(names, count));
+    setLoading(true);
+    setError('');
+    fetch('/api/tools/random-team-generator', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ input: { names, teamCount: count } })
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) setError(data.error);
+        else setTeams(data.teams);
+      })
+      .catch((e) => setError(e.message || 'Failed to compute'))
+      .finally(() => setLoading(false));
     setCopied(false);
   }
   async function handleCopy() {
@@ -63,7 +62,7 @@ export default function RandomTeamGenerator() {
             style={{ width: '70px' }}
           />
         </label>
-        <button onClick={handleGenerate} disabled={names.length === 0}>
+        <button onClick={handleGenerate} disabled={names.length === 0 || loading}>
           Generate teams
         </button>
         <button onClick={handleCopy} disabled={teams.length === 0}>
@@ -71,6 +70,7 @@ export default function RandomTeamGenerator() {
         </button>
       </div>
       {names.length === 0 && <div className="tool-error">Add at least one name above.</div>}
+      {error && <div className="agent-error">{error}</div>}
       {teams.length > 0 && (
         <div className="tool-grid">
           {teams.map((team, i) => (

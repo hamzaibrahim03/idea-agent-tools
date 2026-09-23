@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 const DEFAULT_STOPS = [
   { name: 'Warehouse', distanceFromPrev: '0' },
   { name: 'Stop A', distanceFromPrev: '18' },
@@ -8,6 +8,8 @@ const DEFAULT_STOPS = [
 export default function RouteDistanceCalculator() {
   const [stops, setStops] = useState(DEFAULT_STOPS);
   const [avgSpeed, setAvgSpeed] = useState('40');
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
   function updateStop(index, field, value) {
     setStops((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
   }
@@ -17,20 +19,28 @@ export default function RouteDistanceCalculator() {
   function removeStop(index) {
     setStops((prev) => prev.filter((_, i) => i !== index));
   }
-  const speedNum = Number(avgSpeed);
-  const speedValid = Number.isFinite(speedNum) && speedNum > 0;
-  const totalDistance = stops.reduce((sum, s, i) => {
-    if (i === 0) return sum;
-    const d = Number(s.distanceFromPrev);
-    return sum + (Number.isFinite(d) && d >= 0 ? d : 0);
-  }, 0);
-  const totalHours = speedValid ? totalDistance / speedNum : null;
-  function formatDuration(hours) {
-    const totalMinutes = Math.round(hours * 60);
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    return `${h}h ${m}m`;
-  }
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/route-stop-planner', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { stops, avgSpeed } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [stops, avgSpeed]);
+  const totalDistance = result?.totalDistance ?? 0;
+  const speedValid = result?.speedValid ?? false;
+  const duration = result?.duration ?? null;
   return (
     <div className="tool-page">
       <h1>Route Stop Planner</h1>
@@ -40,6 +50,7 @@ export default function RouteDistanceCalculator() {
         route planning). The tool sums total route distance and estimates total drive time from your
         average speed. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Average speed (distance unit/hour):
@@ -90,7 +101,7 @@ export default function RouteDistanceCalculator() {
         </div>
         {speedValid && (
           <div>
-            <strong>Estimated total drive time:</strong> {formatDuration(totalHours)}
+            <strong>Estimated total drive time:</strong> {duration}
           </div>
         )}
       </div>

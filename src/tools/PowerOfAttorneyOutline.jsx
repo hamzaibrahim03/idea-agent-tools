@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 const POWER_OPTIONS = [
   { key: 'financial', label: 'Financial affairs (banking, bills, property management)' },
   { key: 'medical', label: 'Medical/healthcare decisions' },
@@ -10,40 +12,28 @@ export default function PowerOfAttorneyOutline() {
   const [powers, setPowers] = useState({ financial: true, medical: false, property: false });
   const [duration, setDuration] = useState('Until revoked');
   const [copied, setCopied] = useState(false);
+  const ai = useAiGenerate('power-of-attorney-outline', 'Power of Attorney Outline');
+  const title = ai.result?.title || '';
+  const sections = ai.result?.sections || [];
   function togglePower(key) {
     setPowers((prev) => ({ ...prev, [key]: !prev[key] }));
   }
-  function buildOutline() {
-    const principalName = principal || '[Principal Name]';
-    const agentName = agent || '[Agent/Attorney-in-Fact Name]';
-    const selectedPowers = POWER_OPTIONS.filter((p) => powers[p.key]).map((p) => p.label);
-    return [
-      'POWER OF ATTORNEY - OUTLINE',
-      '',
-      `1. Principal: ${principalName} ("Principal") grants this power of attorney.`,
-      '',
-      `2. Agent: ${agentName} ("Agent" or "Attorney-in-Fact") is appointed to act on the Principal's behalf.`,
-      '',
-      '3. Powers Granted:',
-      selectedPowers.length ? selectedPowers.map((p) => `   - ${p}`).join('\n') : '   - [No powers selected]',
-      '',
-      `4. Duration: This power of attorney is effective ${duration}.`,
-      '',
-      '5. Scope and Limitations: Clearly describe any limitations on the Agent\'s authority, and whether this is a general or limited/specific power of attorney.',
-      '',
-      '6. Durability: State whether this power of attorney remains effective if the Principal becomes incapacitated (a "durable" power of attorney), which typically requires specific language.',
-      '',
-      '7. Revocation: Describe how and when the Principal may revoke this power of attorney.',
-      '',
-      '8. Execution Requirements: Most jurisdictions require specific formalities - such as notarization and/or witnesses - for a power of attorney to be legally valid.',
-      '',
-      '9. Signatures: Principal signs (and, depending on jurisdiction, the Agent may also sign to accept the appointment), typically before a notary public and/or witnesses.'
-    ].join('\n');
+  async function handleGenerate() {
+    const selectedPowers = POWER_OPTIONS.filter((p) => powers[p.key]).map((p) => p.label).join('; ');
+    await ai.generate({ principal, agent, powersGranted: selectedPowers, duration });
   }
-  const outline = buildOutline();
+  function assembleText() {
+    const lines = [title, ''];
+    sections.forEach((s, i) => {
+      lines.push(`${i + 1}. ${s.heading}`);
+      lines.push(s.content);
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(outline);
+      await navigator.clipboard.writeText(assembleText());
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -53,8 +43,9 @@ export default function PowerOfAttorneyOutline() {
     <div className="tool-page">
       <h1>Power of Attorney Outline</h1>
       <p className="tool-description">
-        Fill in the basic details below to generate an educational outline of what a power of
-        attorney document typically contains. Runs entirely in your browser.
+        Fill in the basic details below and click "Generate with AI" for a genuinely AI-written
+        outline of what a power of attorney document typically contains, tailored to your details -
+        free, no account needed (rate-limited to keep it free for everyone).
       </p>
       <div className="tool-error">
         <strong>This absolutely requires a real lawyer:</strong> A power of attorney is a powerful
@@ -87,14 +78,36 @@ export default function PowerOfAttorneyOutline() {
         ))}
       </div>
       <div className="tool-controls">
-        <button type="button" onClick={handleCopy}>
-          {copied ? 'Copied!' : 'Copy outline'}
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || !principal.trim() || !agent.trim()}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={handleCopy} disabled={!sections.length}>
+          {copied ? 'Copied!' : 'Copy all'}
+        </button>
+        <button type="button" onClick={() => window.print()} disabled={!sections.length}>
+          Print
+        </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
         </button>
       </div>
-      <div className="tool-panel">
-        <label>Generated outline</label>
-        <textarea readOnly value={outline} style={{ minHeight: 320 }} />
-      </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
+      {sections.length > 0 && (
+        <div className="tool-panel">
+          {title && <h2>{title}</h2>}
+          {sections.map((s, i) => (
+            <div key={i} style={{ marginBottom: '16px' }}>
+              <h3>
+                {i + 1}. {s.heading}
+              </h3>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{s.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

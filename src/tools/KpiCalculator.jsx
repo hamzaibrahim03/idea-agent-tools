@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 export default function KpiCalculator() {
   const [marketingSpend, setMarketingSpend] = useState('5000');
   const [newCustomers, setNewCustomers] = useState('100');
@@ -7,30 +7,35 @@ export default function KpiCalculator() {
   const [customerLifespan, setCustomerLifespan] = useState('3');
   const [customersLost, setCustomersLost] = useState('10');
   const [totalCustomers, setTotalCustomers] = useState('200');
-  const spendNum = Number(marketingSpend);
-  const newCustNum = Number(newCustomers);
-  const cacValid = Number.isFinite(spendNum) && spendNum >= 0 && Number.isFinite(newCustNum) && newCustNum > 0;
-  const cac = cacValid ? spendNum / newCustNum : 0;
-  const avgPurchaseNum = Number(avgPurchaseValue);
-  const freqNum = Number(purchaseFrequency);
-  const lifespanNum = Number(customerLifespan);
-  const clvValid =
-    Number.isFinite(avgPurchaseNum) && avgPurchaseNum >= 0 &&
-    Number.isFinite(freqNum) && freqNum >= 0 &&
-    Number.isFinite(lifespanNum) && lifespanNum >= 0;
-  const clv = clvValid ? avgPurchaseNum * freqNum * lifespanNum : 0;
-  const lostNum = Number(customersLost);
-  const totalNum = Number(totalCustomers);
-  const churnValid = Number.isFinite(lostNum) && lostNum >= 0 && Number.isFinite(totalNum) && totalNum > 0;
-  const churnRate = churnValid ? (lostNum / totalNum) * 100 : 0;
+  const [result, setResult] = useState({ cacValid: false, cac: 0, clvValid: false, clv: 0, churnValid: false, churnRate: 0 });
+  const [fetchError, setFetchError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setFetchError('');
+      fetch('/api/tools/kpi-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { marketingSpend, newCustomers, avgPurchaseValue, purchaseFrequency, customerLifespan, customersLost, totalCustomers } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setFetchError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [marketingSpend, newCustomers, avgPurchaseValue, purchaseFrequency, customerLifespan, customersLost, totalCustomers]);
   return (
     <div className="tool-page">
       <h1>KPI Calculator</h1>
       <p className="tool-description">
         Three common business KPI calculators in one place: Customer Acquisition Cost, Customer
-        Lifetime Value, and Churn Rate, each using its standard formula. Runs entirely in your
-        browser.
+        Lifetime Value, and Churn Rate, each using its standard formula.
       </p>
+      {fetchError && <div className="agent-error">{fetchError}</div>}
       <h2 style={{ fontSize: '18px' }}>Customer Acquisition Cost (CAC)</h2>
       <div className="tool-controls">
         <label>
@@ -42,9 +47,9 @@ export default function KpiCalculator() {
           <input type="number" min={0} value={newCustomers} onChange={(e) => setNewCustomers(e.target.value)} style={{ width: '100px' }} />
         </label>
       </div>
-      {cacValid ? (
+      {result.cacValid ? (
         <div className="timestamp-result" style={{ marginBottom: '20px' }}>
-          <strong>CAC:</strong> <code>{cac.toFixed(2)}</code> per customer
+          <strong>CAC:</strong> <code>{result.cac.toFixed(2)}</code> per customer
         </div>
       ) : (
         <div className="tool-error" style={{ marginBottom: '20px' }}>
@@ -66,9 +71,9 @@ export default function KpiCalculator() {
           <input type="number" min={0} value={customerLifespan} onChange={(e) => setCustomerLifespan(e.target.value)} style={{ width: '90px' }} />
         </label>
       </div>
-      {clvValid ? (
+      {result.clvValid ? (
         <div className="timestamp-result" style={{ marginBottom: '20px' }}>
-          <strong>CLV:</strong> <code>{clv.toFixed(2)}</code>
+          <strong>CLV:</strong> <code>{result.clv.toFixed(2)}</code>
         </div>
       ) : (
         <div className="tool-error" style={{ marginBottom: '20px' }}>
@@ -86,9 +91,9 @@ export default function KpiCalculator() {
           <input type="number" min={0} value={totalCustomers} onChange={(e) => setTotalCustomers(e.target.value)} style={{ width: '110px' }} />
         </label>
       </div>
-      {churnValid ? (
+      {result.churnValid ? (
         <div className="timestamp-result">
-          <strong>Churn rate:</strong> <code>{churnRate.toFixed(2)}%</code>
+          <strong>Churn rate:</strong> <code>{result.churnRate.toFixed(2)}%</code>
         </div>
       ) : (
         <div className="tool-error">Enter a non-negative lost count and a positive total customer count.</div>

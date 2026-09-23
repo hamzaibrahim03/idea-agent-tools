@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function PropertyDescriptionTemplateGenerator() {
   const [propertyType, setPropertyType] = useState('House');
   const [bedrooms, setBedrooms] = useState('3');
@@ -7,21 +9,12 @@ export default function PropertyDescriptionTemplateGenerator() {
   const [location, setLocation] = useState('');
   const [features, setFeatures] = useState('');
   const [copied, setCopied] = useState(false);
-  const featureList = features
-    .split('\n')
-    .map((f) => f.trim())
-    .filter(Boolean);
-  function buildDescription() {
-    const loc = location || '[Location]';
-    const typeLower = propertyType.toLowerCase();
-    const intro = `This ${bedrooms}-bedroom, ${bathrooms}-bathroom ${typeLower} offers ${sqft || '[square footage]'} sq ft of living space in ${loc}.`;
-    const featuresBlock = featureList.length
-      ? `Key features include:\n${featureList.map((f) => `- ${f}`).join('\n')}`
-      : '';
-    const closing = `Don't miss this opportunity to own a ${typeLower} in ${loc}. Contact us today to schedule a viewing.`;
-    return [intro, '', featuresBlock, '', closing].filter((line, i, arr) => !(line === '' && arr[i - 1] === '')).join('\n').trim();
+  const ai = useAiGenerate('property-description-template', 'Property Description Generator');
+  const result = ai.result;
+  const description = result?.fullDescription || '';
+  async function handleGenerate() {
+    await ai.generate({ propertyType, bedrooms, bathrooms, sqft, location, features });
   }
-  const description = buildDescription();
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(description);
@@ -34,10 +27,9 @@ export default function PropertyDescriptionTemplateGenerator() {
     <div className="tool-page">
       <h1>Property Description Template Generator</h1>
       <p className="tool-description">
-        Fill in the property details below and this tool assembles a structured listing
-        description from a fill-in-the-blank template. It is not AI-written copy - it's a
-        mechanical template you should review and personalize before publishing. Runs entirely in
-        your browser.
+        Fill in the property details below and click "Generate with AI" for a genuinely AI-written
+        listing description - free, no account needed (rate-limited to keep it free for everyone).
+        Review and personalize the result before publishing.
       </p>
       <div className="tool-grid">
         <div className="tool-panel">
@@ -79,14 +71,39 @@ export default function PropertyDescriptionTemplateGenerator() {
         />
       </div>
       <div className="tool-controls">
-        <button type="button" onClick={handleCopy}>
+        <button type="button" onClick={handleGenerate} disabled={ai.loading || !location.trim()}>
+          {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+        </button>
+        <button type="button" onClick={handleCopy} disabled={!description}>
           {copied ? 'Copied!' : 'Copy description'}
         </button>
+        <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+          {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
+        </button>
       </div>
+      {ai.showApiSetup && (
+        <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+      )}
+      {ai.error && <div className="agent-error">{ai.error}</div>}
+      {result?.headline && (
+        <div className="tool-panel">
+          <label>Headline</label>
+          <input readOnly value={result.headline} />
+        </div>
+      )}
       <div className="tool-panel">
         <label>Generated description</label>
-        <textarea readOnly value={description} style={{ minHeight: 220 }} />
+        <textarea readOnly value={description} placeholder="Fill in the details above and click Generate with AI" style={{ minHeight: 220 }} />
       </div>
+      {result?.highlights?.length > 0 && (
+        <ul className="uuid-list">
+          {result.highlights.map((h, i) => (
+            <li key={i}>
+              <span>{h}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

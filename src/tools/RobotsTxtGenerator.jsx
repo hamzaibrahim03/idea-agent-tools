@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 let nextId = 1;
 function makeId() {
   return nextId++;
@@ -10,28 +10,12 @@ function makeBlock(userAgent = '*') {
     rules: [{ id: makeId(), type: 'Disallow', path: '' }],
   };
 }
-export function buildRobotsTxt(blocks, sitemapUrl) {
-  const lines = [];
-  for (const block of blocks) {
-    const agent = block.userAgent.trim() || '*';
-    lines.push(`User-agent: ${agent}`);
-    for (const rule of block.rules) {
-      if (!rule.path.trim()) continue;
-      lines.push(`${rule.type}: ${rule.path.trim()}`);
-    }
-    lines.push('');
-  }
-  while (lines.length && lines[lines.length - 1] === '') lines.pop();
-  if (sitemapUrl.trim()) {
-    if (lines.length) lines.push('');
-    lines.push(`Sitemap: ${sitemapUrl.trim()}`);
-  }
-  return lines.join('\n');
-}
 export default function RobotsTxtGenerator() {
   const [blocks, setBlocks] = useState(() => [makeBlock()]);
   const [sitemapUrl, setSitemapUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [output, setOutput] = useState('');
+  const [error, setError] = useState('');
   function addBlock() {
     setBlocks((bs) => [...bs, makeBlock()]);
   }
@@ -70,7 +54,25 @@ export default function RobotsTxtGenerator() {
     }
     setSitemapUrl('');
   }
-  const output = buildRobotsTxt(blocks, sitemapUrl);
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/robots-txt-generator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { blocks, sitemapUrl } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setOutput(data.output);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [blocks, sitemapUrl]);
   async function handleCopy() {
     if (!output) return;
     try {
@@ -88,6 +90,7 @@ export default function RobotsTxtGenerator() {
         line. Runs entirely in your browser - copy the result into a file named robots.txt at your
         site's root.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <button onClick={() => applyPreset('allow-all')}>Preset: Allow all</button>
         <button onClick={() => applyPreset('disallow-all')}>Preset: Disallow all</button>

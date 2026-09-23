@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 const DEFAULT_COMPONENTS = [
   { name: 'Bolt (M6)', qtyPerUnit: '4' },
   { name: 'Bracket', qtyPerUnit: '2' },
@@ -7,6 +7,9 @@ const DEFAULT_COMPONENTS = [
 export default function MaterialRequirementPlanner() {
   const [targetQty, setTargetQty] = useState('500');
   const [components, setComponents] = useState(DEFAULT_COMPONENTS);
+  const [targetValid, setTargetValid] = useState(true);
+  const [rows, setRows] = useState([]);
+  const [fetchError, setFetchError] = useState('');
   function updateComponent(index, field, value) {
     setComponents((prev) => prev.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
   }
@@ -16,22 +19,37 @@ export default function MaterialRequirementPlanner() {
   function removeComponent(index) {
     setComponents((prev) => prev.filter((_, i) => i !== index));
   }
-  const targetNum = Number(targetQty);
-  const targetValid = Number.isFinite(targetNum) && targetNum > 0;
-  const rows = components.map((c) => {
-    const qty = Number(c.qtyPerUnit);
-    const validRow = Number.isFinite(qty) && qty >= 0;
-    const totalNeeded = validRow && targetValid ? qty * targetNum : null;
-    return { ...c, qty, validRow, totalNeeded };
-  });
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setFetchError('');
+      fetch('/api/tools/material-requirement-planner', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { targetQty, components } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setFetchError(data.error);
+          else {
+            setTargetValid(data.targetValid);
+            setRows(data.rows || []);
+          }
+        })
+        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [targetQty, components]);
   return (
     <div className="tool-page">
       <h1>Material Requirement Planner</h1>
       <p className="tool-description">
         Build a simple bill of materials - list each component and how many are needed per finished
         unit - then enter your target production quantity to get the total quantity required for each
-        component. Runs entirely in your browser.
+        component.
       </p>
+      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <label>
           Target production quantity:
@@ -57,12 +75,12 @@ export default function MaterialRequirementPlanner() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
+            {components.map((c, i) => (
               <tr key={i}>
                 <td>
                   <input
                     type="text"
-                    value={r.name}
+                    value={c.name}
                     onChange={(e) => updateComponent(i, 'name', e.target.value)}
                     placeholder="e.g. Bolt (M6)"
                     style={{ width: '100%' }}
@@ -72,13 +90,13 @@ export default function MaterialRequirementPlanner() {
                   <input
                     type="number"
                     min={0}
-                    value={r.qtyPerUnit}
+                    value={c.qtyPerUnit}
                     onChange={(e) => updateComponent(i, 'qtyPerUnit', e.target.value)}
                     style={{ width: '90px' }}
                   />
                 </td>
                 <td>
-                  <code>{r.totalNeeded !== null ? r.totalNeeded.toLocaleString() : '-'}</code>
+                  <code>{rows[i]?.totalNeeded !== null && rows[i]?.totalNeeded !== undefined ? rows[i].totalNeeded.toLocaleString() : '-'}</code>
                 </td>
                 <td>
                   <button type="button" className="uuid-copy-btn" onClick={() => removeComponent(i)} disabled={components.length <= 1}>

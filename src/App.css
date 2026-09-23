@@ -1,4 +1,3 @@
-/* App shell */
 .app-shell {
   min-height: 100svh;
   display: flex;
@@ -157,7 +156,6 @@
   border-top: 1px solid var(--border);
 }
 
-/* Home page */
 .home-page h1 {
   font-size: 36px;
   margin: 0 0 8px;
@@ -407,7 +405,6 @@
   animation: fade-in var(--dur-base) var(--ease);
 }
 
-/* Tool pages (shared) */
 .tool-page h1 {
   font-size: 28px;
   margin: 0 0 8px;
@@ -461,9 +458,6 @@
   cursor: default;
 }
 
-/* Multi-step agent wizards: content fades/slides in per step, and the
-   active step button in .tool-controls gets an accent fill + subtle scale
-   instead of only a border color change. */
 .agent-step {
   animation: fade-up var(--dur-base) var(--ease);
 }
@@ -596,7 +590,143 @@
   font-size: 14px;
 }
 
-/* Affiliate callout */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  width: 100%;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.form-group input,
+.form-group textarea {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-group textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.agent-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.agent-actions button {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  border-radius: 6px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.agent-actions button:first-child {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.agent-actions button:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  transform: translateY(-1px);
+}
+
+.agent-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.agent-error {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  color: #dc2626;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  margin-top: 14px;
+  animation: fade-up var(--dur-fast) var(--ease);
+}
+
+.agent-loading,
+.agent-empty {
+  opacity: 0.6;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 24px 4px;
+}
+
+.agent-result {
+  animation: fade-up var(--dur-base) var(--ease);
+}
+
+.agent-result-object {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agent-result-field {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.agent-result-field:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.agent-result-field>strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: var(--accent);
+}
+
+.agent-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-result-item {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
 .affiliate-callout {
   margin-top: 24px;
   padding: 12px 14px;
@@ -615,7 +745,6 @@
   font-size: 12px;
 }
 
-/* Regex tester */
 .regex-pattern-row {
   display: flex;
   align-items: center;
@@ -682,7 +811,6 @@
   margin-right: 6px;
 }
 
-/* UUID generator */
 .uuid-list {
   list-style: none;
   margin: 0;
@@ -738,7 +866,6 @@
   transform: scale(0.94);
 }
 
-/* Timestamp converter */
 .timestamp-now-row {
   display: flex;
   align-items: center;

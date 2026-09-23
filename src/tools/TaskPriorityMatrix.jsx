@@ -1,9 +1,9 @@
-import { useState } from 'react';
-const QUADRANTS = [
-  { key: 'do', title: 'Do (urgent & important)', match: (u, i) => u && i },
-  { key: 'schedule', title: 'Schedule (important, not urgent)', match: (u, i) => !u && i },
-  { key: 'delegate', title: 'Delegate (urgent, not important)', match: (u, i) => u && !i },
-  { key: 'delete', title: 'Delete (neither urgent nor important)', match: (u, i) => !u && !i }
+import { useEffect, useState } from 'react';
+const QUADRANT_META = [
+  { key: 'do', title: 'Do (urgent & important)' },
+  { key: 'schedule', title: 'Schedule (important, not urgent)' },
+  { key: 'delegate', title: 'Delegate (urgent, not important)' },
+  { key: 'delete', title: 'Delete (neither urgent nor important)' }
 ];
 export default function TaskPriorityMatrix() {
   const [tasks, setTasks] = useState([
@@ -13,6 +13,27 @@ export default function TaskPriorityMatrix() {
     { text: 'Browse industry news', urgent: false, important: false }
   ]);
   const [newTask, setNewTask] = useState('');
+  const [quadrants, setQuadrants] = useState(QUADRANT_META.map((q) => ({ ...q, tasks: [] })));
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/task-priority-matrix', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { tasks } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setQuadrants(data.quadrants);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [tasks]);
   function addTask() {
     if (!newTask.trim()) return;
     setTasks((prev) => [...prev, { text: newTask.trim(), urgent: false, important: false }]);
@@ -32,6 +53,7 @@ export default function TaskPriorityMatrix() {
         them into the four Eisenhower matrix quadrants: Do, Schedule, Delegate, and Delete. Runs
         entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <input
           type="text"
@@ -66,18 +88,15 @@ export default function TaskPriorityMatrix() {
         ))}
       </ul>
       <div className="tool-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '16px' }}>
-        {QUADRANTS.map((q) => {
-          const matching = tasks.filter((t) => q.match(t.urgent, t.important));
-          return (
-            <div key={q.key} className="timestamp-result">
-              <strong>{q.title}</strong>
-              {matching.length === 0 && <div style={{ opacity: 0.6 }}>No tasks here.</div>}
-              {matching.map((t, i) => (
-                <div key={i}>• {t.text}</div>
-              ))}
-            </div>
-          );
-        })}
+        {quadrants.map((q) => (
+          <div key={q.key} className="timestamp-result">
+            <strong>{q.title}</strong>
+            {q.tasks.length === 0 && <div style={{ opacity: 0.6 }}>No tasks here.</div>}
+            {q.tasks.map((t, i) => (
+              <div key={i}>• {t}</div>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -1,100 +1,112 @@
 import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function ContractOutlineGenerator() {
-  const [partyA, setPartyA] = useState('');
-  const [partyB, setPartyB] = useState('');
-  const [purpose, setPurpose] = useState('');
-  const [terms, setTerms] = useState('');
-  const [payment, setPayment] = useState('');
-  const [duration, setDuration] = useState('');
-  const [termination, setTermination] = useState('');
-  const [copied, setCopied] = useState(false);
-  function buildOutline() {
-    const a = partyA || '[Party A]';
-    const b = partyB || '[Party B]';
-    return [
-      'GENERIC CONTRACT - OUTLINE',
-      '',
-      `1. Parties: This agreement is between ${a} and ${b}.`,
-      '',
-      `2. Purpose: ${purpose || '[Describe the purpose/subject matter of this contract]'}`,
-      '',
-      `3. Terms: ${terms || '[Describe the key terms and obligations of each party]'}`,
-      '',
-      `4. Payment: ${payment || '[Describe payment amount, schedule, and method]'}`,
-      '',
-      `5. Duration: ${duration || '[Describe the term/duration of this contract]'}`,
-      '',
-      `6. Termination: ${termination || '[Describe conditions under which either party may terminate this contract, and required notice period]'}`,
-      '',
-      '7. Confidentiality: Describe any obligations to keep shared information confidential, if applicable.',
-      '',
-      '8. Dispute Resolution: Describe how disputes will be resolved (e.g. negotiation, mediation, arbitration, courts).',
-      '',
-      '9. Governing Law: This agreement is governed by the laws of the applicable state/jurisdiction.',
-      '',
-      '10. Signatures: Both parties sign and date to indicate acceptance.'
-    ].join('\n');
-  }
-  const outline = buildOutline();
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(outline);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
+    const [partyA, setPartyA] = useState('');
+    const [partyB, setPartyB] = useState('');
+    const [purpose, setPurpose] = useState('');
+    const [terms, setTerms] = useState('');
+    const [payment, setPayment] = useState('');
+    const [duration, setDuration] = useState('');
+    const [termination, setTermination] = useState('');
+    const [copied, setCopied] = useState(false);
+    const ai = useAiGenerate('contract-outline', 'Contract Outline Generator');
+    const title = ai.result?.title || '';
+    const sections = ai.result?.sections || [];
+    async function handleGenerate() {
+        await ai.generate({ partyA, partyB, purpose, terms, payment, duration, termination });
     }
-  }
-  return (
-    <div className="tool-page">
-      <h1>Contract Outline Generator</h1>
-      <p className="tool-description">
-        Fill in the basic details below to generate a generic contract structure outline - parties,
-        purpose, terms, payment, duration, and termination - with your entered values filled in.
-        Runs entirely in your browser.
-      </p>
-      <div className="tool-error">
-        <strong>Not legal advice:</strong> This is an educational template only, not a legally
-        binding document as-is. Consult a qualified lawyer before using any generated document.
-      </div>
-      <div className="tool-grid">
-        <div className="tool-panel">
-          <label htmlFor="co-a">Party A</label>
-          <input id="co-a" type="text" value={partyA} onChange={(e) => setPartyA(e.target.value)} placeholder="Acme Corp" />
+    function assembleText() {
+        const lines = [title, ''];
+        sections.forEach((s, i) => {
+            lines.push(`${i + 1}. ${s.heading}`);
+            lines.push(s.content);
+            lines.push('');
+        });
+        return lines.join('\n');
+    }
+    async function handleCopy() {
+        try {
+            await navigator.clipboard.writeText(assembleText());
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+        }
+    }
+    return (
+        <div className="tool-page">
+            <h1>Contract Outline Generator</h1>
+            <p className="tool-description">
+                Fill in the basic details below and click "Generate with AI" for a genuinely AI-written
+                generic contract structure outline - parties, purpose, terms, payment, duration, and
+                termination - tailored to your details. Free, no account needed (rate-limited to keep it
+                free for everyone).
+            </p>
+            <div className="tool-error">
+                <strong>Not legal advice:</strong> This is an educational template only, not a legally
+                binding document as-is. Consult a qualified lawyer before using any generated document.
+            </div>
+            <div className="tool-grid">
+                <div className="tool-panel">
+                    <label htmlFor="co-a">Party A</label>
+                    <input id="co-a" type="text" value={partyA} onChange={(e) => setPartyA(e.target.value)} placeholder="Acme Corp" />
+                </div>
+                <div className="tool-panel">
+                    <label htmlFor="co-b">Party B</label>
+                    <input id="co-b" type="text" value={partyB} onChange={(e) => setPartyB(e.target.value)} placeholder="Jane Doe" />
+                </div>
+            </div>
+            <div className="tool-panel">
+                <label htmlFor="co-purpose">Purpose</label>
+                <textarea id="co-purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} style={{ minHeight: 60 }} />
+            </div>
+            <div className="tool-panel">
+                <label htmlFor="co-terms">Key terms</label>
+                <textarea id="co-terms" value={terms} onChange={(e) => setTerms(e.target.value)} style={{ minHeight: 60 }} />
+            </div>
+            <div className="tool-panel">
+                <label htmlFor="co-payment">Payment</label>
+                <textarea id="co-payment" value={payment} onChange={(e) => setPayment(e.target.value)} style={{ minHeight: 60 }} />
+            </div>
+            <div className="tool-panel">
+                <label htmlFor="co-duration">Duration</label>
+                <input id="co-duration" type="text" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="12 months" />
+            </div>
+            <div className="tool-panel">
+                <label htmlFor="co-termination">Termination clause</label>
+                <textarea id="co-termination" value={termination} onChange={(e) => setTermination(e.target.value)} style={{ minHeight: 60 }} />
+            </div>
+            <div className="tool-controls">
+                <button type="button" onClick={handleGenerate} disabled={ai.loading || !partyA.trim() || !partyB.trim()}>
+                    {ai.loading ? 'Generating...' : '✨ Generate with AI'}
+                </button>
+                <button type="button" onClick={handleCopy} disabled={!sections.length}>
+                    {copied ? 'Copied!' : 'Copy all'}
+                </button>
+                <button type="button" onClick={() => window.print()} disabled={!sections.length}>
+                    Print
+                </button>
+                <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+                    {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
+                </button>
+            </div>
+            {ai.showApiSetup && (
+                <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+            )}
+            {ai.error && <div className="agent-error">{ai.error}</div>}
+            {sections.length > 0 && (
+                <div className="tool-panel">
+                    {title && <h2>{title}</h2>}
+                    {sections.map((s, i) => (
+                        <div key={i} style={{ marginBottom: '16px' }}>
+                            <h3>
+                                {i + 1}. {s.heading}
+                            </h3>
+                            <p style={{ whiteSpace: 'pre-wrap' }}>{s.content}</p>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
-        <div className="tool-panel">
-          <label htmlFor="co-b">Party B</label>
-          <input id="co-b" type="text" value={partyB} onChange={(e) => setPartyB(e.target.value)} placeholder="Jane Doe" />
-        </div>
-      </div>
-      <div className="tool-panel">
-        <label htmlFor="co-purpose">Purpose</label>
-        <textarea id="co-purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} style={{ minHeight: 60 }} />
-      </div>
-      <div className="tool-panel">
-        <label htmlFor="co-terms">Key terms</label>
-        <textarea id="co-terms" value={terms} onChange={(e) => setTerms(e.target.value)} style={{ minHeight: 60 }} />
-      </div>
-      <div className="tool-panel">
-        <label htmlFor="co-payment">Payment</label>
-        <textarea id="co-payment" value={payment} onChange={(e) => setPayment(e.target.value)} style={{ minHeight: 60 }} />
-      </div>
-      <div className="tool-panel">
-        <label htmlFor="co-duration">Duration</label>
-        <input id="co-duration" type="text" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="12 months" />
-      </div>
-      <div className="tool-panel">
-        <label htmlFor="co-termination">Termination clause</label>
-        <textarea id="co-termination" value={termination} onChange={(e) => setTermination(e.target.value)} style={{ minHeight: 60 }} />
-      </div>
-      <div className="tool-controls">
-        <button type="button" onClick={handleCopy}>
-          {copied ? 'Copied!' : 'Copy outline'}
-        </button>
-      </div>
-      <div className="tool-panel">
-        <label>Generated outline</label>
-        <textarea readOnly value={outline} style={{ minHeight: 320 }} />
-      </div>
-    </div>
-  );
+    );
 }

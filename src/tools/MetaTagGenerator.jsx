@@ -1,22 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 const DESCRIPTION_LIMIT = 160;
-export function buildMetaTags(fields) {
-  const lines = [];
-  if (fields.title.trim()) lines.push(`<title>${fields.title.trim()}</title>`);
-  if (fields.description.trim()) {
-    lines.push(`<meta name="description" content="${fields.description.trim()}">`);
-  }
-  if (fields.keywords.trim()) lines.push(`<meta name="keywords" content="${fields.keywords.trim()}">`);
-  if (fields.author.trim()) lines.push(`<meta name="author" content="${fields.author.trim()}">`);
-  if (fields.ogTitle.trim()) lines.push(`<meta property="og:title" content="${fields.ogTitle.trim()}">`);
-  if (fields.ogDescription.trim()) {
-    lines.push(`<meta property="og:description" content="${fields.ogDescription.trim()}">`);
-  }
-  if (fields.ogImage.trim()) lines.push(`<meta property="og:image" content="${fields.ogImage.trim()}">`);
-  if (fields.twitterCard) lines.push(`<meta name="twitter:card" content="${fields.twitterCard}">`);
-  if (fields.canonicalUrl.trim()) lines.push(`<link rel="canonical" href="${fields.canonicalUrl.trim()}">`);
-  return lines.join('\n');
-}
 const initialFields = {
   title: '',
   description: '',
@@ -30,11 +13,31 @@ const initialFields = {
 };
 export default function MetaTagGenerator() {
   const [fields, setFields] = useState(initialFields);
+  const [output, setOutput] = useState('');
   const [copied, setCopied] = useState(false);
+  const [fetchError, setFetchError] = useState('');
   function updateField(key, value) {
     setFields((f) => ({ ...f, [key]: value }));
   }
-  const output = buildMetaTags(fields);
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setFetchError('');
+      fetch('/api/tools/meta-tag-generator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { fields } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setFetchError(data.error);
+          else setOutput(data.output || '');
+        })
+        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [fields]);
   const descriptionTooLong = fields.description.length > DESCRIPTION_LIMIT;
   async function handleCopy() {
     if (!output) return;
@@ -53,9 +56,9 @@ export default function MetaTagGenerator() {
       <h1>Meta Tag Generator</h1>
       <p className="tool-description">
         Fill in your page's SEO and social-sharing details to generate the matching
-        &lt;meta&gt;/&lt;link&gt; tags to paste into your page's &lt;head&gt;. Runs entirely in your
-        browser - nothing is sent to a server.
+        &lt;meta&gt;/&lt;link&gt; tags to paste into your page's &lt;head&gt;.
       </p>
+      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy tags'}

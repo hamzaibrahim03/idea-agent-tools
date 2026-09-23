@@ -1,34 +1,26 @@
 import { useState } from 'react';
-const CATEGORIES = {
-  Faces: ['😀', '😂', '🥹', '😉', '😍', '🤔', '😎', '🥳', '😴', '🤯', '😭', '🙃', '🤪', '😇', '🫠'],
-  Animals: ['🐶', '🐱', '🦊', '🐻', '🐼', '🐨', '🦁', '🐸', '🐵', '🦄', '🐧', '🦉', '🐢', '🐙', '🦋'],
-  Food: ['🍕', '🍔', '🌮', '🍣', '🍩', '🍪', '🍉', '🍓', '🥑', '🍇', '🧁', '🍫', '🍿', '🥐', '🍜'],
-  Objects: ['💡', '🎈', '🎁', '📚', '🎸', '⌚', '🔑', '🧩', '🎮', '📷', '🕹️', '🧸', '🪁', '🧴', '🛼'],
-  Nature: ['🌵', '🌲', '🌸', '🌈', '⭐', '🔥', '🌊', '☀️', '❄️', '🍀', '🌙', '⚡', '🌻', '🍁', '🌴']
-};
+const CATEGORIES = ['Faces', 'Animals', 'Food', 'Objects', 'Nature'];
 const ALL_CATEGORY = 'All';
-function randomIndex(length) {
-  const maxUint32 = 0xffffffff;
-  const limit = maxUint32 - (maxUint32 % length);
-  let x;
-  do {
-    x = crypto.getRandomValues(new Uint32Array(1))[0];
-  } while (x >= limit);
-  return x % length;
-}
-function pickEmojis(pool, count) {
-  return Array.from({ length: count }, () => pool[randomIndex(pool.length)]);
-}
 export default function RandomEmojiPicker() {
   const [category, setCategory] = useState(ALL_CATEGORY);
   const [count, setCount] = useState(1);
   const [picked, setPicked] = useState([]);
   const [copied, setCopied] = useState(false);
-  const pool = category === ALL_CATEGORY ? Object.values(CATEGORIES).flat() : CATEGORIES[category];
+  const [error, setError] = useState('');
   function handlePick() {
-    const n = Math.max(1, Math.min(50, Number(count) || 1));
-    setPicked(pickEmojis(pool, n));
-    setCopied(false);
+    setError('');
+    fetch('/api/tools/random-emoji-picker', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ input: { category, count } })
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) setError(data.error);
+        else setPicked(data.picked);
+        setCopied(false);
+      })
+      .catch((e) => setError(e.message || 'Failed to pick'));
   }
   async function handleCopy() {
     if (picked.length === 0) return;
@@ -51,7 +43,7 @@ export default function RandomEmojiPicker() {
           Category:
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value={ALL_CATEGORY}>All</option>
-            {Object.keys(CATEGORIES).map((cat) => (
+            {CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
               </option>
@@ -74,6 +66,7 @@ export default function RandomEmojiPicker() {
           {copied ? 'Copied!' : 'Copy'}
         </button>
       </div>
+      {error && <div className="agent-error">{error}</div>}
       {picked.length > 0 && (
         <div className="timestamp-result">
           <span style={{ fontSize: 36, letterSpacing: 4 }}>{picked.join(' ')}</span>

@@ -1,11 +1,31 @@
-import { useState } from 'react';
-function clean(text) {
-  return text.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
+import { useEffect, useState } from 'react';
 export default function PalindromeChecker() {
   const [input, setInput] = useState('');
-  const cleaned = clean(input);
-  const isPalindrome = cleaned.length > 0 && cleaned === [...cleaned].reverse().join('');
+  const [cleaned, setCleaned] = useState('');
+  const [isPalindrome, setIsPalindrome] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/palindrome-checker', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { input } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else {
+            setCleaned(data.cleaned);
+            setIsPalindrome(data.isPalindrome);
+          }
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [input]);
   return (
     <div className="tool-page">
       <h1>Palindrome Checker</h1>
@@ -23,7 +43,8 @@ export default function PalindromeChecker() {
           placeholder="e.g. A man, a plan, a canal: Panama"
         />
       </div>
-      {input.trim() && (
+      {error && <div className="agent-error">{error}</div>}
+      {!error && input.trim() && (
         <div className="timestamp-result">
           <span>
             <strong>Cleaned for comparison:</strong> <code>{cleaned || '(empty)'}</code>

@@ -1,27 +1,34 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 export default function PortionCostCalculator() {
   const [bulkCost, setBulkCost] = useState('45.00');
   const [bulkQuantity, setBulkQuantity] = useState('25');
   const [bulkUnit, setBulkUnit] = useState('lb');
   const [portionSize, setPortionSize] = useState('6');
   const [portionUnit, setPortionUnit] = useState('oz');
-  const WEIGHT_TO_OZ = { oz: 1, lb: 16, g: 0.035274, kg: 35.274 };
-  const costNum = Number(bulkCost);
-  const bulkQtyNum = Number(bulkQuantity);
-  const portionNum = Number(portionSize);
-  const valid =
-    Number.isFinite(costNum) && costNum >= 0 &&
-    Number.isFinite(bulkQtyNum) && bulkQtyNum > 0 &&
-    Number.isFinite(portionNum) && portionNum > 0;
-  let costPerPortion = null;
-  let portionsAvailable = null;
-  if (valid) {
-    const bulkQtyInOz = bulkQtyNum * WEIGHT_TO_OZ[bulkUnit];
-    const portionInOz = portionNum * WEIGHT_TO_OZ[portionUnit];
-    const costPerOz = costNum / bulkQtyInOz;
-    costPerPortion = costPerOz * portionInOz;
-    portionsAvailable = bulkQtyInOz / portionInOz;
-  }
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/portion-cost-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { bulkCost, bulkQuantity, bulkUnit, portionSize, portionUnit } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [bulkCost, bulkQuantity, bulkUnit, portionSize, portionUnit]);
+  const valid = result?.valid ?? false;
+  const costPerPortion = result?.costPerPortion ?? null;
+  const portionsAvailable = result?.portionsAvailable ?? null;
   return (
     <div className="tool-page">
       <h1>Portion Cost Calculator</h1>
@@ -62,13 +69,14 @@ export default function PortionCostCalculator() {
           </select>
         </div>
       </div>
-      {!valid && (
+      {error && <div className="agent-error">{error}</div>}
+      {!error && !valid && (
         <div className="tool-error">
           <strong>Error:</strong> Enter a non-negative cost and positive bulk quantity and portion
           size.
         </div>
       )}
-      {valid && (
+      {!error && valid && (
         <div className="timestamp-result">
           <div>
             <strong>Cost per portion:</strong> ${costPerPortion.toFixed(3)}

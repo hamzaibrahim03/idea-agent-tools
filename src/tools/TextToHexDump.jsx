@@ -1,22 +1,32 @@
-import { useMemo, useState } from 'react';
-const BYTES_PER_ROW = 16;
-function toHexDump(text) {
-  const bytes = new TextEncoder().encode(text);
-  if (bytes.length === 0) return '';
-  const rows = [];
-  for (let offset = 0; offset < bytes.length; offset += BYTES_PER_ROW) {
-    const chunk = bytes.slice(offset, offset + BYTES_PER_ROW);
-    const hex = Array.from(chunk, (b) => b.toString(16).padStart(2, '0')).join(' ').padEnd(BYTES_PER_ROW * 3 - 1, ' ');
-    const ascii = Array.from(chunk, (b) => (b >= 0x20 && b <= 0x7e ? String.fromCharCode(b) : '.')).join('');
-    rows.push(`${offset.toString(16).padStart(8, '0')}  ${hex}  |${ascii}|`);
-  }
-  return rows.join('\n');
-}
+import { useEffect, useState } from 'react';
 export default function TextToHexDump() {
   const [input, setInput] = useState('');
   const [copied, setCopied] = useState(false);
-  const byteLength = useMemo(() => new TextEncoder().encode(input).length, [input]);
-  const output = useMemo(() => toHexDump(input), [input]);
+  const [output, setOutput] = useState('');
+  const [byteLength, setByteLength] = useState(0);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/text-to-hex-dump', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { input } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else {
+            setOutput(data.output);
+            setByteLength(data.byteLength);
+          }
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [input]);
   async function handleCopy() {
     if (!output) return;
     try {
@@ -34,6 +44,7 @@ export default function TextToHexDump() {
         ASCII representation, 16 bytes per row, using UTF-8 byte encoding. Runs entirely in your
         browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <span className="tool-placeholder">{byteLength} byte{byteLength === 1 ? '' : 's'} (UTF-8)</span>
         <button onClick={handleCopy} disabled={!output}>

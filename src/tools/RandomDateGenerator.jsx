@@ -1,19 +1,4 @@
 import { useState } from 'react';
-function randomInt(maxExclusive) {
-  const maxUint32 = 0xffffffff;
-  const limit = maxUint32 - (maxUint32 % maxExclusive);
-  const buf = new Uint32Array(1);
-  let n;
-  do {
-    crypto.getRandomValues(buf);
-    n = buf[0];
-  } while (n >= limit);
-  return n % maxExclusive;
-}
-function isWeekend(date) {
-  const day = date.getUTCDay();
-  return day === 0 || day === 6;
-}
 function formatDate(date) {
   return date.toISOString().slice(0, 10);
 }
@@ -36,34 +21,21 @@ export default function RandomDateGenerator() {
   const [copied, setCopied] = useState(false);
   function handleGenerate() {
     setError('');
-    const start = new Date(`${startDate}T00:00:00Z`);
-    const end = new Date(`${endDate}T00:00:00Z`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      setError('Enter valid start and end dates.');
-      setResults([]);
-      return;
-    }
-    if (start > end) {
-      setError('Start date must be on or before the end date.');
-      setResults([]);
-      return;
-    }
-    const totalDays = Math.floor((end - start) / 86400000) + 1;
-    const candidateDays = [];
-    for (let i = 0; i < totalDays; i++) {
-      const d = new Date(start.getTime() + i * 86400000);
-      if (!excludeWeekends || !isWeekend(d)) candidateDays.push(d);
-    }
-    if (candidateDays.length === 0) {
-      setError('No eligible dates in that range (check the weekend exclusion).');
-      setResults([]);
-      return;
-    }
-    const howMany = Math.min(Math.max(Number(count) || 1, 1), 50);
-    const picked = Array.from({ length: howMany }, () => candidateDays[randomInt(candidateDays.length)]);
-    picked.sort((a, b) => a - b);
-    setResults(picked);
-    setCopied(false);
+    fetch('/api/tools/random-date-generator', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ input: { startDate, endDate, count, excludeWeekends } })
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) {
+          setError(data.error);
+          setResults([]);
+        } else if (data.error === '') {
+          setResults((data.resultsIso || []).map((iso) => new Date(iso)));
+        }
+      })
+      .catch((e) => setError(e.message || 'Failed to generate'));
   }
   async function handleCopy() {
     if (results.length === 0) return;

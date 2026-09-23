@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAiGenerate } from '../lib/useAiGenerate.js';
+import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 function emptyQuestion() {
   return { text: '', choices: ['', '', '', ''], correctIndex: 0 };
 }
@@ -7,6 +9,9 @@ export default function QuizGenerator() {
   const [mode, setMode] = useState('build');
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [topic, setTopic] = useState('');
+  const [questionCount, setQuestionCount] = useState('5');
+  const ai = useAiGenerate('quiz', 'Quiz Generator');
   function updateQuestion(i, field, value) {
     setQuestions((prev) => prev.map((q, idx) => (idx === i ? { ...q, [field]: value } : q)));
   }
@@ -14,6 +19,20 @@ export default function QuizGenerator() {
     setQuestions((prev) =>
       prev.map((q, idx) => (idx === qi ? { ...q, choices: q.choices.map((c, cidx) => (cidx === ci ? value : c)) } : q))
     );
+  }
+  async function handleGenerateWithAi() {
+    const data = await ai.generate({ topic, questionCount });
+    if (!data) return;
+    const generated = (data.questions || []).map((q) => {
+      const choices = q.options && q.options.length === 4 ? q.options : ['', '', '', ''];
+      const correctIndex = Math.max(0, choices.indexOf(q.correctAnswer));
+      return { text: q.question || '', choices, correctIndex };
+    });
+    if (generated.length === 0) return;
+    setQuestions((prev) => {
+      const nonEmpty = prev.filter((q) => q.text.trim());
+      return [...nonEmpty, ...generated];
+    });
   }
   const validQuestions = questions.filter((q) => q.text.trim() && q.choices.every((c) => c.trim()));
   function startQuiz() {
@@ -43,6 +62,28 @@ export default function QuizGenerator() {
       </div>
       {mode === 'build' && (
         <>
+          <div className="tool-grid">
+            <div className="tool-panel">
+              <label htmlFor="quiz-topic">Topic</label>
+              <input id="quiz-topic" type="text" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. World capitals, JavaScript basics" />
+            </div>
+            <div className="tool-panel">
+              <label htmlFor="quiz-count">Number of questions</label>
+              <input id="quiz-count" type="number" min={1} max={20} value={questionCount} onChange={(e) => setQuestionCount(e.target.value)} />
+            </div>
+          </div>
+          <div className="tool-controls">
+            <button type="button" onClick={handleGenerateWithAi} disabled={ai.loading || !topic.trim()}>
+              {ai.loading ? 'Generating...' : '✨ Generate quiz with AI'}
+            </button>
+            <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
+              {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
+            </button>
+          </div>
+          {ai.showApiSetup && (
+            <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
+          )}
+          {ai.error && <div className="agent-error">{ai.error}</div>}
           <div className="tool-controls">
             <button type="button" onClick={() => setQuestions((prev) => [...prev, emptyQuestion()])}>
               Add question

@@ -1,34 +1,4 @@
-import { useState } from 'react';
-const UUID_RE = /^([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})$/i;
-function variantLabel(digit) {
-  const bits = parseInt(digit, 16);
-  if ((bits & 0b1000) === 0b0000) return 'NCS backward compatible (0xx)';
-  if ((bits & 0b1100) === 0b1000) return 'RFC 4122 (10x)';
-  if ((bits & 0b1110) === 0b1100) return 'Microsoft (110)';
-  return 'Reserved for future use (111)';
-}
-function analyzeUuid(input) {
-  const trimmed = input.trim();
-  const match = trimmed.match(UUID_RE);
-  if (!match) {
-    return { valid: false, formatOk: false };
-  }
-  const [, g1, g2, g3, g4, g5] = match;
-  const version = g3[0];
-  const variantDigit = g4[0];
-  const isNilUuid = /^0+$/.test(g1 + g2 + g3 + g4 + g5);
-  const isMaxUuid = /^f+$/i.test(g1 + g2 + g3 + g4 + g5);
-  return {
-    valid: true,
-    formatOk: true,
-    canonical: `${g1}-${g2}-${g3}-${g4}-${g5}`.toLowerCase(),
-    version: /[1-8]/.test(version) ? version : null,
-    versionRaw: version,
-    variant: variantLabel(variantDigit),
-    isNilUuid,
-    isMaxUuid
-  };
-}
+import { useEffect, useState } from 'react';
 const VERSION_NAMES = {
   1: 'Time-based (v1)',
   2: 'DCE Security (v2)',
@@ -41,7 +11,27 @@ const VERSION_NAMES = {
 };
 export default function UuidValidator() {
   const [input, setInput] = useState('');
-  const result = input.trim() ? analyzeUuid(input) : null;
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/uuid-validator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { input } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data.result);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [input]);
   return (
     <div className="tool-page">
       <h1>UUID Validator</h1>
@@ -49,6 +39,7 @@ export default function UuidValidator() {
         Paste a string to check whether it's a well-formed UUID, and identify its version and
         variant from the bit pattern. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-panel">
         <label htmlFor="uuid-validate-input">UUID</label>
         <input

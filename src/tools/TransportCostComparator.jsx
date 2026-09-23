@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 let nextId = 1;
 function makeDefaultOptions() {
   return [
@@ -10,6 +10,27 @@ function makeDefaultOptions() {
 export default function TransportCostComparator() {
   const [options, setOptions] = useState(makeDefaultOptions);
   const [sortBy, setSortBy] = useState('cost');
+  const [sorted, setSorted] = useState([]);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/transport-cost-comparator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { options, sortBy } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setSorted(data.sorted);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [options, sortBy]);
   function update(id, field, value) {
     setOptions((opts) => opts.map((o) => (o.id === id ? { ...o, [field]: value } : o)));
   }
@@ -20,15 +41,6 @@ export default function TransportCostComparator() {
   function removeOption(id) {
     setOptions((opts) => opts.filter((o) => o.id !== id));
   }
-  const withValues = options.map((o) => ({
-    ...o,
-    costNum: parseFloat(o.cost) || 0,
-    durationNum: parseFloat(o.duration) || 0
-  }));
-  const filled = withValues.filter((o) => o.cost !== '' || o.duration !== '');
-  const sorted = [...filled].sort((a, b) =>
-    sortBy === 'cost' ? a.costNum - b.costNum : a.durationNum - b.durationNum
-  );
   return (
     <div className="tool-page">
       <h1>Transport Cost Comparator</h1>
@@ -37,6 +49,7 @@ export default function TransportCostComparator() {
         them compared side by side, sorted by cost or time. This tool does not look up real fares
         or schedules; all figures come from you. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <button onClick={addOption} disabled={options.length >= 3}>Add option (max 3)</button>
         <label>

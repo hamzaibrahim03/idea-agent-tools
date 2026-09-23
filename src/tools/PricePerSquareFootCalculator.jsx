@@ -1,18 +1,32 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 export default function PricePerSquareFootCalculator() {
   const [mode, setMode] = useState('fromPrice');
   const [totalPrice, setTotalPrice] = useState('300000');
   const [totalSqft, setTotalSqft] = useState('1500');
   const [targetPricePerSqft, setTargetPricePerSqft] = useState('200');
   const [knownSqft, setKnownSqft] = useState('1500');
-  const priceNum = Number(totalPrice);
-  const sqftNum = Number(totalSqft);
-  const fromPriceValid = Number.isFinite(priceNum) && priceNum >= 0 && Number.isFinite(sqftNum) && sqftNum > 0;
-  const pricePerSqft = fromPriceValid ? priceNum / sqftNum : null;
-  const targetNum = Number(targetPricePerSqft);
-  const knownSqftNum = Number(knownSqft);
-  const fromTargetValid = Number.isFinite(targetNum) && targetNum >= 0 && Number.isFinite(knownSqftNum) && knownSqftNum > 0;
-  const totalFromTarget = fromTargetValid ? targetNum * knownSqftNum : null;
+  const [result, setResult] = useState({ fromPriceValid: false, pricePerSqft: null, fromTargetValid: false, totalFromTarget: null });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/price-per-square-foot-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { totalPrice, totalSqft, targetPricePerSqft, knownSqft } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [totalPrice, totalSqft, targetPricePerSqft, knownSqft]);
+  const { fromPriceValid, pricePerSqft, fromTargetValid, totalFromTarget } = result;
   return (
     <div className="tool-page">
       <h1>Price Per Square Foot Calculator</h1>
@@ -30,6 +44,7 @@ export default function PricePerSquareFootCalculator() {
           </select>
         </label>
       </div>
+      {error && <div className="agent-error">{error}</div>}
       {mode === 'fromPrice' && (
         <>
           <div className="tool-controls">
@@ -42,12 +57,12 @@ export default function PricePerSquareFootCalculator() {
               <input type="number" min={0} value={totalSqft} onChange={(e) => setTotalSqft(e.target.value)} style={{ width: '100px' }} />
             </label>
           </div>
-          {!fromPriceValid && (
+          {!error && !fromPriceValid && (
             <div className="tool-error">
               <strong>Error:</strong> Enter a non-negative price and a positive square footage.
             </div>
           )}
-          {fromPriceValid && (
+          {!error && fromPriceValid && (
             <div className="timestamp-result">
               <div>
                 <strong>Price per square foot:</strong> {pricePerSqft.toFixed(2)}
@@ -68,12 +83,12 @@ export default function PricePerSquareFootCalculator() {
               <input type="number" min={0} value={knownSqft} onChange={(e) => setKnownSqft(e.target.value)} style={{ width: '100px' }} />
             </label>
           </div>
-          {!fromTargetValid && (
+          {!error && !fromTargetValid && (
             <div className="tool-error">
               <strong>Error:</strong> Enter a non-negative price/sq ft and a positive square footage.
             </div>
           )}
-          {fromTargetValid && (
+          {!error && fromTargetValid && (
             <div className="timestamp-result">
               <div>
                 <strong>Estimated total price:</strong> {totalFromTarget.toFixed(2)}

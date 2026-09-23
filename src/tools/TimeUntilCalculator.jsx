@@ -1,55 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 function pad(n) {
   return String(n).padStart(2, '0');
 }
 function toDatetimeLocalValue(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-function breakdownTimeUntil(fromDate, toDate) {
-  if (toDate <= fromDate) return null;
-  let years = toDate.getFullYear() - fromDate.getFullYear();
-  let months = toDate.getMonth() - fromDate.getMonth();
-  let cursor = new Date(fromDate);
-  cursor.setFullYear(cursor.getFullYear() + years);
-  cursor.setMonth(cursor.getMonth() + months);
-  if (cursor > toDate) {
-    months -= 1;
-    cursor = new Date(fromDate);
-    cursor.setFullYear(fromDate.getFullYear() + years);
-    cursor.setMonth(fromDate.getMonth() + months);
-  }
-  if (months < 0) {
-    years -= 1;
-    months += 12;
-    cursor = new Date(fromDate);
-    cursor.setFullYear(fromDate.getFullYear() + years);
-    cursor.setMonth(fromDate.getMonth() + months);
-  }
-  let remainingMs = toDate.getTime() - cursor.getTime();
-  const msPerMinute = 60000;
-  const msPerHour = 3600000;
-  const msPerDay = 86400000;
-  const msPerWeek = msPerDay * 7;
-  const weeks = Math.floor(remainingMs / msPerWeek);
-  remainingMs -= weeks * msPerWeek;
-  const days = Math.floor(remainingMs / msPerDay);
-  remainingMs -= days * msPerDay;
-  const hours = Math.floor(remainingMs / msPerHour);
-  remainingMs -= hours * msPerHour;
-  const minutes = Math.floor(remainingMs / msPerMinute);
-  return { years, months, weeks, days, hours, minutes };
-}
-function formatBreakdown(b) {
-  const units = [
-    ['year', b.years],
-    ['month', b.months],
-    ['week', b.weeks],
-    ['day', b.days],
-    ['hour', b.hours],
-    ['minute', b.minutes]
-  ].filter(([, value]) => value > 0);
-  if (units.length === 0) return 'Less than a minute';
-  return units.map(([label, value]) => `${value} ${label}${value === 1 ? '' : 's'}`).join(', ');
 }
 export default function TimeUntilCalculator() {
   const [target, setTarget] = useState(() => {
@@ -57,9 +11,28 @@ export default function TimeUntilCalculator() {
     d.setMonth(d.getMonth() + 3);
     return toDatetimeLocalValue(d);
   });
-  const targetDate = target ? new Date(target) : null;
-  const valid = targetDate && !Number.isNaN(targetDate.getTime());
-  const breakdown = valid ? breakdownTimeUntil(new Date(), targetDate) : null;
+  const [result, setResult] = useState({ valid: false, breakdown: null, formatted: null });
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setError('');
+      fetch('/api/tools/time-until-calculator', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ input: { target } })
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.error) setError(data.error);
+          else setResult(data);
+        })
+        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [target]);
+  const { valid, breakdown, formatted } = result;
   return (
     <div className="tool-page">
       <h1>Time Until Calculator</h1>
@@ -68,6 +41,7 @@ export default function TimeUntilCalculator() {
         months, 2 weeks, 4 days, 6 hours"), using a calendar-aware month/week/day breakdown rather
         than a raw duration. Runs entirely in your browser.
       </p>
+      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Target date/time:
@@ -81,7 +55,7 @@ export default function TimeUntilCalculator() {
       {breakdown && (
         <div className="timestamp-result">
           <span>
-            <strong>Time remaining:</strong> {formatBreakdown(breakdown)}
+            <strong>Time remaining:</strong> {formatted}
           </span>
         </div>
       )}
