@@ -1,41 +1,32 @@
-import { useState } from 'react';
-function computeCoverage(bill, deductibleRemaining, coinsurancePercent, oopMax, oopSpentSoFar) {
-    let remainingBill = bill;
-    let patientPays = 0;
-    const deductiblePortion = Math.min(remainingBill, Math.max(0, deductibleRemaining));
-    patientPays += deductiblePortion;
-    remainingBill -= deductiblePortion;
-    const coinsuranceOnRemainder = remainingBill * (coinsurancePercent / 100);
-    let patientTotalIfUncapped = patientPays + coinsuranceOnRemainder;
-    const spentBeforeThisBill = oopSpentSoFar;
-    const roomLeftInOopMax = Math.max(0, oopMax - spentBeforeThisBill);
-    let finalPatientPays;
-    if (patientTotalIfUncapped <= roomLeftInOopMax) {
-        finalPatientPays = patientTotalIfUncapped;
-    } else {
-        finalPatientPays = roomLeftInOopMax;
-    }
-    const insurancePays = bill - finalPatientPays;
-    return { patientPays: finalPatientPays, insurancePays };
-}
+import { useEffect, useState } from 'react';
 export default function InsuranceCoverageCalculator() {
     const [bill, setBill] = useState('2000');
     const [deductibleRemaining, setDeductibleRemaining] = useState('500');
     const [coinsurance, setCoinsurance] = useState('20');
     const [oopMax, setOopMax] = useState('5000');
     const [oopSpent, setOopSpent] = useState('0');
-    const billNum = Number(bill);
-    const deductibleNum = Number(deductibleRemaining);
-    const coinsuranceNum = Number(coinsurance);
-    const oopMaxNum = Number(oopMax);
-    const oopSpentNum = Number(oopSpent);
-    const valid =
-        Number.isFinite(billNum) && billNum >= 0 &&
-        Number.isFinite(deductibleNum) && deductibleNum >= 0 &&
-        Number.isFinite(coinsuranceNum) && coinsuranceNum >= 0 && coinsuranceNum <= 100 &&
-        Number.isFinite(oopMaxNum) && oopMaxNum >= 0 &&
-        Number.isFinite(oopSpentNum) && oopSpentNum >= 0;
-    const result = valid ? computeCoverage(billNum, deductibleNum, coinsuranceNum, oopMaxNum, oopSpentNum) : null;
+    const [data, setData] = useState(null);
+    const [error, setError] = useState('');
+    useEffect(() => {
+        let cancelled = false;
+        const timer = setTimeout(() => {
+            setError('');
+            fetch('/api/tools/insurance-coverage-calculator', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ input: { bill, deductibleRemaining, coinsurance, oopMax, oopSpent } })
+            })
+                .then((r) => r.json())
+                .then((d) => {
+                    if (cancelled) return;
+                    if (d.error) { setError(d.error); setData(null); }
+                    else setData(d);
+                })
+                .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
+        }, 250);
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [bill, deductibleRemaining, coinsurance, oopMax, oopSpent]);
+    const result = data?.result;
     return (
         <div className="tool-page">
             <h1>Insurance Coverage Calculator</h1>
@@ -43,7 +34,6 @@ export default function InsuranceCoverageCalculator() {
                 Estimate how a medical bill splits between you and your insurer, using standard health
                 insurance math: you pay up to your remaining deductible, then a coinsurance percentage
                 applies until you reach your out-of-pocket max, after which insurance covers the rest.
-                Runs entirely in your browser.
             </p>
             <div className="tool-error">
                 <strong>Not medical or insurance advice:</strong> This is illustrative math based on a
@@ -72,10 +62,9 @@ export default function InsuranceCoverageCalculator() {
                     <input id="ic-oop-spent" type="number" min={0} value={oopSpent} onChange={(e) => setOopSpent(e.target.value)} />
                 </div>
             </div>
-            {!valid && (
+            {error && (
                 <div className="tool-error">
-                    <strong>Error:</strong> Enter valid non-negative amounts, and a coinsurance percentage
-                    between 0 and 100.
+                    <strong>Error:</strong> {error}
                 </div>
             )}
             {result && (
