@@ -1,42 +1,47 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+const DRY_VOLUME_FACTOR = 1.54;
+const CEMENT_DENSITY_KG_M3 = 1440;
+const CEMENT_BAG_KG = 50;
 const MIX_RATIOS = {
-  '1:1.5:3': { label: '1:1.5:3 (M20, structural)' },
-  '1:2:4': { label: '1:2:4 (M15, general RCC)' },
-  '1:3:6': { label: '1:3:6 (M10, mass concrete)' },
-  '1:4:8': { label: '1:4:8 (PCC, leveling/foundation)' }
+  '1:1.5:3': { cement: 1, sand: 1.5, aggregate: 3, label: '1:1.5:3 (M20, structural)' },
+  '1:2:4': { cement: 1, sand: 2, aggregate: 4, label: '1:2:4 (M15, general RCC)' },
+  '1:3:6': { cement: 1, sand: 3, aggregate: 6, label: '1:3:6 (M10, mass concrete)' },
+  '1:4:8': { cement: 1, sand: 4, aggregate: 8, label: '1:4:8 (PCC, leveling/foundation)' }
 };
 export default function MaterialCalculator() {
   const [area, setArea] = useState('50');
   const [thickness, setThickness] = useState('100');
   const [ratioKey, setRatioKey] = useState('1:2:4');
   const [steelDensity, setSteelDensity] = useState('80');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  const [fetchError, setFetchError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setFetchError('');
-      fetch('/api/tools/material-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { area, thickness, ratioKey, steelDensity } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) {
-            setError(data.error);
-            setResult(null);
-          } else {
-            setError('');
-            setResult(data);
-          }
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [area, thickness, ratioKey, steelDensity]);
+  const areaNum = Number(area);
+  const thicknessNum = Number(thickness);
+  const steelDensityNum = Number(steelDensity);
+  const ratio = MIX_RATIOS[ratioKey];
+  const valid =
+    Number.isFinite(areaNum) && areaNum > 0 &&
+    Number.isFinite(thicknessNum) && thicknessNum > 0 &&
+    Number.isFinite(steelDensityNum) && steelDensityNum >= 0;
+  let result = null;
+  if (valid) {
+    const wetVolumeM3 = areaNum * (thicknessNum / 1000);
+    const dryVolumeM3 = wetVolumeM3 * DRY_VOLUME_FACTOR;
+    const totalParts = ratio.cement + ratio.sand + ratio.aggregate;
+    const cementVolumeM3 = (dryVolumeM3 * ratio.cement) / totalParts;
+    const sandVolumeM3 = (dryVolumeM3 * ratio.sand) / totalParts;
+    const aggregateVolumeM3 = (dryVolumeM3 * ratio.aggregate) / totalParts;
+    const cementKg = cementVolumeM3 * CEMENT_DENSITY_KG_M3;
+    const cementBags = cementKg / CEMENT_BAG_KG;
+    const steelKg = areaNum * steelDensityNum;
+    result = {
+      wetVolumeM3,
+      dryVolumeM3,
+      cementVolumeM3,
+      sandVolumeM3,
+      aggregateVolumeM3,
+      cementBags,
+      steelKg
+    };
+  }
   return (
     <div className="tool-page">
       <h1>Construction Material Calculator</h1>
@@ -45,9 +50,8 @@ export default function MaterialCalculator() {
         the standard dry-volume concrete mix-ratio method (wet volume x 1.54 to account for voids,
         then split by your chosen mix ratio). Steel weight is estimated from a reinforcement density
         you provide per square meter. This is a planning estimate - confirm with a structural
-        engineer before ordering materials.
+        engineer before ordering materials. Runs entirely in your browser.
       </p>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <label>
           Mix ratio (cement:sand:aggregate):
@@ -80,12 +84,12 @@ export default function MaterialCalculator() {
           />
         </div>
       </div>
-      {error && (
+      {!valid && (
         <div className="tool-error">
-          <strong>Error:</strong> {error}
+          <strong>Error:</strong> Enter a positive area, positive thickness, and non-negative steel density.
         </div>
       )}
-      {result && !error && (
+      {result && (
         <div className="timestamp-result">
           <div>
             <strong>Wet concrete volume:</strong> {result.wetVolumeM3.toFixed(3)} m³

@@ -1,4 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+function computeTax(income, brackets) {
+  const sorted = [...brackets].sort((a, b) => a.threshold - b.threshold);
+  let tax = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    const lower = sorted[i].threshold;
+    const upper = i + 1 < sorted.length ? sorted[i + 1].threshold : Infinity;
+    if (income <= lower) break;
+    const taxableInBracket = Math.min(income, upper) - lower;
+    tax += taxableInBracket * (sorted[i].rate / 100);
+  }
+  return tax;
+}
 export default function TaxCalculator() {
   const [income, setIncome] = useState('60000');
   const [brackets, setBrackets] = useState([
@@ -7,27 +19,6 @@ export default function TaxCalculator() {
     { threshold: '44000', rate: '25' },
     { threshold: '95000', rate: '35' }
   ]);
-  const [result, setResult] = useState({ valid: false });
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/tax-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { income, brackets } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [income, brackets]);
   function updateBracket(index, field, value) {
     setBrackets((prev) => prev.map((b, i) => (i === index ? { ...b, [field]: value } : b)));
   }
@@ -37,7 +28,13 @@ export default function TaxCalculator() {
   function removeBracket(index) {
     setBrackets((prev) => prev.filter((_, i) => i !== index));
   }
-  const { valid, totalTax, effectiveRate, afterTax } = result;
+  const incomeNum = Number(income);
+  const parsedBrackets = brackets.map((b) => ({ threshold: Number(b.threshold), rate: Number(b.rate) }));
+  const bracketsValid = parsedBrackets.every((b) => Number.isFinite(b.threshold) && b.threshold >= 0 && Number.isFinite(b.rate) && b.rate >= 0);
+  const valid = Number.isFinite(incomeNum) && incomeNum >= 0 && bracketsValid && parsedBrackets.length > 0;
+  const totalTax = valid ? computeTax(incomeNum, parsedBrackets) : 0;
+  const effectiveRate = valid && incomeNum > 0 ? (totalTax / incomeNum) * 100 : 0;
+  const afterTax = valid ? incomeNum - totalTax : 0;
   return (
     <div className="tool-page">
       <h1>Tax Calculator (Progressive Brackets)</h1>
@@ -48,7 +45,6 @@ export default function TaxCalculator() {
         and rates to match your own situation. This is for illustration only and is not tax advice;
         consult a tax professional for your actual filing. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-panel">
         <label htmlFor="income-input">Total taxable income</label>
         <input id="income-input" type="number" min={0} value={income} onChange={(e) => setIncome(e.target.value)} style={{ width: '160px' }} />

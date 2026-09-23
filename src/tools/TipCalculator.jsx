@@ -1,30 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function TipCalculator() {
   const [bill, setBill] = useState('50');
   const [tipPercent, setTipPercent] = useState(18);
   const [people, setPeople] = useState(1);
-  const [result, setResult] = useState({ tipAmount: 0, total: 0, perPerson: 0, tipPerPerson: 0 });
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/tip-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { bill, tipPercent, people } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [bill, tipPercent, people]);
-  const { tipAmount, total, perPerson, tipPerPerson } = result;
+  const billNum = Number(bill) || 0;
+  const tipAmount = (billNum * tipPercent) / 100;
+  const total = billNum + tipAmount;
+  const peopleNum = Math.max(1, Number(people) || 1);
   return (
     <div className="tool-page">
       <h1>Tip Calculator</h1>
@@ -32,7 +14,6 @@ export default function TipCalculator() {
         Calculate a tip and split the bill between any number of people. Runs entirely in your
         browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Bill amount:
@@ -69,7 +50,7 @@ export default function TipCalculator() {
           <strong>Total:</strong> {total.toFixed(2)}
         </span>
         <span>
-          <strong>Per person:</strong> {perPerson.toFixed(2)} ({tipPerPerson.toFixed(2)} tip each)
+          <strong>Per person:</strong> {(total / peopleNum).toFixed(2)} ({(tipAmount / peopleNum).toFixed(2)} tip each)
         </span>
       </div>
     </div>

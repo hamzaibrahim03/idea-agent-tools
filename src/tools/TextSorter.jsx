@@ -1,4 +1,46 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+function naturalCompare(a, b) {
+  const chunk = /(\d+)|(\D+)/g;
+  const aParts = a.match(chunk) || [];
+  const bParts = b.match(chunk) || [];
+  const len = Math.max(aParts.length, bParts.length);
+  for (let i = 0; i < len; i++) {
+    const ap = aParts[i] ?? '';
+    const bp = bParts[i] ?? '';
+    const aNum = /^\d+$/.test(ap);
+    const bNum = /^\d+$/.test(bp);
+    if (aNum && bNum) {
+      const diff = Number(ap) - Number(bp);
+      if (diff !== 0) return diff;
+    } else if (ap !== bp) {
+      return ap < bp ? -1 : 1;
+    }
+  }
+  return 0;
+}
+function sortLines(text, options) {
+  let lines = text.split('\n');
+  if (options.dedupe) {
+    const seen = new Set();
+    lines = lines.filter((line) => {
+      const key = options.caseInsensitive ? line.toLowerCase() : line;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+  const compare = (a, b) => {
+    const aKey = options.caseInsensitive ? a.toLowerCase() : a;
+    const bKey = options.caseInsensitive ? b.toLowerCase() : b;
+    if (options.natural) return naturalCompare(aKey, bKey);
+    if (aKey < bKey) return -1;
+    if (aKey > bKey) return 1;
+    return 0;
+  };
+  lines = [...lines].sort(compare);
+  if (options.direction === 'desc') lines.reverse();
+  return lines;
+}
 export default function TextSorter() {
   const [input, setInput] = useState('');
   const [direction, setDirection] = useState('asc');
@@ -6,27 +48,10 @@ export default function TextSorter() {
   const [dedupe, setDedupe] = useState(false);
   const [natural, setNatural] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [output, setOutput] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/text-sorter', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input, direction, caseInsensitive, dedupe, natural } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setOutput(data.output);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input, direction, caseInsensitive, dedupe, natural]);
+  const output = useMemo(
+    () => sortLines(input, { direction, caseInsensitive, dedupe, natural }).join('\n'),
+    [input, direction, caseInsensitive, dedupe, natural]
+  );
   async function handleCopy() {
     if (!output) return;
     try {
@@ -43,7 +68,6 @@ export default function TextSorter() {
         Paste multi-line text and sort the lines alphabetically, with optional case-insensitive,
         duplicate-removal, and natural (numeric-aware) sorting. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Direction:

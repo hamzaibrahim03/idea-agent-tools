@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 function formatNum(n) {
   return Number(n.toFixed(6)).toString();
 }
@@ -7,31 +7,34 @@ export default function PythagoreanTheoremCalculator() {
   const [a, setA] = useState('3');
   const [b, setB] = useState('4');
   const [c, setC] = useState('5');
-  const [result, setResult] = useState(null);
-  const [domainError, setDomainError] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/pythagorean-theorem-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { solveFor, a, b, c } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else {
-            setResult(data.result);
-            setDomainError(data.domainError);
-          }
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [solveFor, a, b, c]);
+  const numA = Number(a);
+  const numB = Number(b);
+  const numC = Number(c);
+  let result = null;
+  let error = '';
+  if (solveFor === 'c') {
+    if (a === '' || b === '' || Number.isNaN(numA) || Number.isNaN(numB) || numA <= 0 || numB <= 0) {
+      error = 'Enter positive numbers for a and b.';
+    } else {
+      result = Math.sqrt(numA * numA + numB * numB);
+    }
+  } else if (solveFor === 'a') {
+    if (b === '' || c === '' || Number.isNaN(numB) || Number.isNaN(numC) || numB <= 0 || numC <= 0) {
+      error = 'Enter positive numbers for b and c.';
+    } else if (numC <= numB) {
+      error = 'The hypotenuse c must be longer than leg b.';
+    } else {
+      result = Math.sqrt(numC * numC - numB * numB);
+    }
+  } else {
+    if (a === '' || c === '' || Number.isNaN(numA) || Number.isNaN(numC) || numA <= 0 || numC <= 0) {
+      error = 'Enter positive numbers for a and c.';
+    } else if (numC <= numA) {
+      error = 'The hypotenuse c must be longer than leg a.';
+    } else {
+      result = Math.sqrt(numC * numC - numA * numA);
+    }
+  }
   return (
     <div className="tool-page">
       <h1>Pythagorean Theorem Calculator</h1>
@@ -69,9 +72,8 @@ export default function PythagoreanTheoremCalculator() {
           </label>
         )}
       </div>
-      {error && <div className="agent-error">{error}</div>}
-      {!error && domainError && <div className="tool-error">{domainError}</div>}
-      {!error && result !== null && !domainError && (
+      {error && <div className="tool-error">{error}</div>}
+      {result !== null && !error && (
         <div className="timestamp-result">
           <strong>{solveFor} = {formatNum(result)}</strong>
         </div>

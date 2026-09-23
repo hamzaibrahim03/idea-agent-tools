@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function ProductionKpiCalculator() {
   const [useAvailInputs, setUseAvailInputs] = useState(false);
   const [availability, setAvailability] = useState('90');
@@ -10,28 +10,21 @@ export default function ProductionKpiCalculator() {
   const [totalCount, setTotalCount] = useState('400');
   const [runTime, setRunTime] = useState('420');
   const [quality, setQuality] = useState('98');
-  const [result, setResult] = useState({ valid: false, effectiveAvailability: null, effectivePerformance: null, qualityNum: null, oee: null });
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/production-kpi-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { useAvailInputs, availability, plannedTime, actualTime, usePerfInputs, performance, idealCycle, totalCount, runTime, quality } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [useAvailInputs, availability, plannedTime, actualTime, usePerfInputs, performance, idealCycle, totalCount, runTime, quality]);
-  const { valid, effectiveAvailability, effectivePerformance, qualityNum, oee } = result;
+  const plannedNum = Number(plannedTime);
+  const actualNum = Number(actualTime);
+  const availFromTime = plannedNum > 0 ? (actualNum / plannedNum) * 100 : null;
+  const effectiveAvailability = useAvailInputs ? availFromTime : Number(availability);
+  const idealNum = Number(idealCycle);
+  const totalCountNum = Number(totalCount);
+  const runTimeNum = Number(runTime);
+  const perfFromCycle = runTimeNum > 0 ? ((idealNum * totalCountNum) / runTimeNum) * 100 : null;
+  const effectivePerformance = usePerfInputs ? perfFromCycle : Number(performance);
+  const qualityNum = Number(quality);
+  const valid =
+    Number.isFinite(effectiveAvailability) &&
+    Number.isFinite(effectivePerformance) &&
+    Number.isFinite(qualityNum);
+  const oee = valid ? (effectiveAvailability / 100) * (effectivePerformance / 100) * (qualityNum / 100) * 100 : null;
   return (
     <div className="tool-page">
       <h1>Production KPI Calculator (OEE)</h1>
@@ -95,13 +88,12 @@ export default function ProductionKpiCalculator() {
         <label htmlFor="pkc-quality">Quality (%) - good units / total units</label>
         <input id="pkc-quality" type="number" min={0} max={100} step="0.1" value={quality} onChange={(e) => setQuality(e.target.value)} style={{ width: '90px' }} />
       </div>
-      {error && <div className="agent-error">{error}</div>}
-      {!error && !valid && (
+      {!valid && (
         <div className="tool-error">
           <strong>Error:</strong> Enter valid values for availability, performance, and quality.
         </div>
       )}
-      {!error && valid && (
+      {valid && (
         <div className="timestamp-result">
           <div>
             <strong>Availability:</strong> {effectiveAvailability.toFixed(1)}%

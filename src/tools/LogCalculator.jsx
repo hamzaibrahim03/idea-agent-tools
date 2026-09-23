@@ -1,42 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+function logBase(value, base) {
+  return Math.log(value) / Math.log(base);
+}
 export default function LogCalculator() {
   const [value, setValue] = useState('100');
   const [base, setBase] = useState('10');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  const [fetchError, setFetchError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setFetchError('');
-      fetch('/api/tools/log-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { value, base } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) {
-            setError(data.error);
-            setResult(null);
-          } else {
-            setError('');
-            setResult(data);
-          }
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [value, base]);
+  const valueNum = Number(value);
+  const baseNum = Number(base);
+  const valid =
+    Number.isFinite(valueNum) && valueNum > 0 &&
+    Number.isFinite(baseNum) && baseNum > 0 && baseNum !== 1;
+  const result = valid ? logBase(valueNum, baseNum) : null;
+  const naturalLog = valueNum > 0 ? Math.log(valueNum) : null;
+  const log10 = valueNum > 0 ? Math.log10(valueNum) : null;
+  const log2 = valueNum > 0 ? Math.log2(valueNum) : null;
   return (
     <div className="tool-page">
       <h1>Logarithm Calculator</h1>
       <p className="tool-description">
         Calculate the logarithm of a number in any base, plus the natural log (ln), log base 10,
-        and log base 2 for reference.
+        and log base 2 for reference. Runs entirely in your browser.
       </p>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <label>
           log
@@ -48,27 +32,27 @@ export default function LogCalculator() {
           )
         </label>
       </div>
-      {error && (
+      {!valid && (
         <div className="tool-error">
-          <strong>Error:</strong> {error}
+          <strong>Error:</strong> Value must be positive, and base must be positive and not equal to 1.
         </div>
       )}
-      {result && !error && (
+      {result !== null && (
         <div className="timestamp-result">
           <div>
             <strong>
               log<sub>{base}</sub>({value}):
             </strong>{' '}
-            {result.result.toFixed(6)}
+            {result.toFixed(6)}
           </div>
           <div>
-            <strong>ln({value}):</strong> {result.naturalLog.toFixed(6)}
+            <strong>ln({value}):</strong> {naturalLog.toFixed(6)}
           </div>
           <div>
-            <strong>log₁₀({value}):</strong> {result.log10.toFixed(6)}
+            <strong>log₁₀({value}):</strong> {log10.toFixed(6)}
           </div>
           <div>
-            <strong>log₂({value}):</strong> {result.log2.toFixed(6)}
+            <strong>log₂({value}):</strong> {log2.toFixed(6)}
           </div>
         </div>
       )}

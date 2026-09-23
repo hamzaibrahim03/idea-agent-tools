@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 const DEFAULT_TRADES = [
   { trade: 'Mason', rate: '35', days: '10' },
   { trade: 'Carpenter', rate: '32', days: '8' },
@@ -8,9 +8,6 @@ const DEFAULT_TRADES = [
 ];
 export default function LaborCostCalculator() {
   const [rows, setRows] = useState(DEFAULT_TRADES.map((t) => ({ ...t, workers: '1' })));
-  const [computed, setComputed] = useState([]);
-  const [grandTotal, setGrandTotal] = useState(0);
-  const [fetchError, setFetchError] = useState('');
   function updateRow(index, field, value) {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
   }
@@ -20,28 +17,15 @@ export default function LaborCostCalculator() {
   function removeRow(index) {
     setRows((prev) => prev.filter((_, i) => i !== index));
   }
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setFetchError('');
-      fetch('/api/tools/labor-cost-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { rows } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setFetchError(data.error);
-          else {
-            setComputed(data.computed || []);
-            setGrandTotal(data.grandTotal || 0);
-          }
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [rows]);
+  const computed = rows.map((r) => {
+    const rate = Number(r.rate);
+    const days = Number(r.days);
+    const workers = Number(r.workers);
+    const validRow = Number.isFinite(rate) && rate >= 0 && Number.isFinite(days) && days >= 0 && Number.isFinite(workers) && workers >= 0;
+    const cost = validRow ? rate * days * workers : 0;
+    return { ...r, cost, validRow };
+  });
+  const grandTotal = computed.reduce((sum, r) => sum + r.cost, 0);
   return (
     <div className="tool-page">
       <h1>Construction Labor Cost Calculator</h1>
@@ -49,9 +33,8 @@ export default function LaborCostCalculator() {
         Estimate total labor cost for a construction project by trade - enter the number of workers,
         daily rate, and number of days for each trade (mason, carpenter, electrician, plumber, helper,
         or your own), and get an itemized cost plus grand total. Rates and durations are whatever you
-        enter; this tool does not look up local wage data.
+        enter; this tool does not look up local wage data. Runs entirely in your browser.
       </p>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <button type="button" onClick={addRow}>
           Add trade
@@ -70,7 +53,7 @@ export default function LaborCostCalculator() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
+            {computed.map((r, i) => (
               <tr key={i}>
                 <td>
                   <input
@@ -110,7 +93,7 @@ export default function LaborCostCalculator() {
                   />
                 </td>
                 <td>
-                  <code>{computed[i]?.validRow ? computed[i].cost.toFixed(2) : '—'}</code>
+                  <code>{r.validRow ? r.cost.toFixed(2) : '—'}</code>
                 </td>
                 <td>
                   <button type="button" className="uuid-copy-btn" onClick={() => removeRow(i)} disabled={rows.length <= 1}>

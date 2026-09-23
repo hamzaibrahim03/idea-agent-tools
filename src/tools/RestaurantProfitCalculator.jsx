@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function RestaurantProfitCalculator() {
   const [revenue, setRevenue] = useState('50000');
   const [foodCost, setFoodCost] = useState('15000');
@@ -6,33 +6,20 @@ export default function RestaurantProfitCalculator() {
   const [rent, setRent] = useState('6000');
   const [utilities, setUtilities] = useState('2000');
   const [other, setOther] = useState('3000');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/restaurant-profit-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { revenue, foodCost, labor, rent, utilities, other } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [revenue, foodCost, labor, rent, utilities, other]);
-  const allValid = result?.allValid ?? false;
-  const expenses = result?.expenses ?? {};
-  const totalExpenses = result?.totalExpenses ?? 0;
-  const netProfit = result?.netProfit ?? 0;
-  const profitMargin = result?.profitMargin ?? null;
-  const revenueNum = result?.revenue ?? Number(revenue);
+  const revenueNum = Number(revenue);
+  const expenses = {
+    'Food cost': Number(foodCost),
+    Labor: Number(labor),
+    Rent: Number(rent),
+    Utilities: Number(utilities),
+    Other: Number(other)
+  };
+  const allValid =
+    Number.isFinite(revenueNum) && revenueNum > 0 &&
+    Object.values(expenses).every((v) => Number.isFinite(v) && v >= 0);
+  const totalExpenses = Object.values(expenses).reduce((sum, v) => sum + v, 0);
+  const netProfit = revenueNum - totalExpenses;
+  const profitMargin = allValid ? (netProfit / revenueNum) * 100 : null;
   return (
     <div className="tool-page">
       <h1>Restaurant Profit Calculator</h1>
@@ -41,7 +28,6 @@ export default function RestaurantProfitCalculator() {
         to compute net profit, profit margin percentage, and each category's share of revenue.
         Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="rp-revenue">Total revenue ($)</label>

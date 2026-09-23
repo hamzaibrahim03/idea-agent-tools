@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 const RATIOS = [
   { value: 1.067, label: 'Minor Second (1.067)' },
   { value: 1.125, label: 'Major Second (1.125)' },
@@ -8,35 +8,28 @@ const RATIOS = [
   { value: 1.5, label: 'Perfect Fifth (1.5)' },
   { value: 1.618, label: 'Golden Ratio (1.618)' }
 ];
+const STEPS = [
+  { key: 'small', label: 'Small', power: -1 },
+  { key: 'body', label: 'Body', power: 0 },
+  { key: 'h6', label: 'H6', power: 1 },
+  { key: 'h5', label: 'H5', power: 2 },
+  { key: 'h4', label: 'H4', power: 3 },
+  { key: 'h3', label: 'H3', power: 4 },
+  { key: 'h2', label: 'H2', power: 5 },
+  { key: 'h1', label: 'H1', power: 6 }
+];
 export default function TypeScaleGenerator() {
   const [baseSize, setBaseSize] = useState(16);
   const [ratio, setRatio] = useState(1.25);
   const [copied, setCopied] = useState(false);
-  const [scale, setScale] = useState([]);
-  const [cssOutput, setCssOutput] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/type-scale-generator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { baseSize, ratio } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else {
-            setScale(data.scale);
-            setCssOutput(data.cssOutput);
-          }
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [baseSize, ratio]);
+  const base = parseFloat(baseSize) || 16;
+  const r = parseFloat(ratio) || 1.25;
+  const scale = STEPS.map((s) => ({
+    ...s,
+    size: Math.round(base * Math.pow(r, s.power) * 100) / 100
+  }));
+  const cssVars = scale.map((s) => `  --font-${s.key}: ${s.size}px;`).join('\n');
+  const cssOutput = `:root {\n${cssVars}\n}`;
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(cssOutput);
@@ -53,7 +46,6 @@ export default function TypeScaleGenerator() {
         standard formula size = base &times; ratio^n. Pick a named ratio like Major Third or
         Perfect Fourth, or enter your own. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Base font size (px):

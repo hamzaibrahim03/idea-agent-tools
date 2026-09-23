@@ -1,29 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+const DEG_TO_RAD = Math.PI / 180;
 export default function TrigonometryCalculator() {
   const [angle, setAngle] = useState('30');
   const [unit, setUnit] = useState('deg');
-  const [result, setResult] = useState({ valid: false });
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/trigonometry-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { angle, unit } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [angle, unit]);
-  const { valid, sin, cos, tan, converted } = result;
+  const angleNum = Number(angle);
+  const valid = Number.isFinite(angleNum);
+  const rad = valid ? (unit === 'deg' ? angleNum * DEG_TO_RAD : angleNum) : null;
+  const sin = rad !== null ? Math.sin(rad) : null;
+  const cos = rad !== null ? Math.cos(rad) : null;
+  const cosIsZero = cos !== null && Math.abs(cos) < 1e-12;
+  const tan = rad !== null ? (cosIsZero ? null : Math.tan(rad)) : null;
   return (
     <div className="tool-page">
       <h1>Trigonometry Calculator</h1>
@@ -31,7 +17,6 @@ export default function TrigonometryCalculator() {
         Calculate sine, cosine, and tangent for an angle in degrees or radians. Runs entirely in
         your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <input type="number" value={angle} onChange={(e) => setAngle(e.target.value)} style={{ width: '120px' }} />
         <select value={unit} onChange={(e) => setUnit(e.target.value)}>
@@ -57,7 +42,7 @@ export default function TrigonometryCalculator() {
           </div>
           <div>
             <strong>In {unit === 'deg' ? 'radians' : 'degrees'}:</strong>{' '}
-            {unit === 'deg' ? converted.toFixed(6) : converted.toFixed(4)}
+            {unit === 'deg' ? rad.toFixed(6) : (angleNum / DEG_TO_RAD).toFixed(4)}
           </div>
         </div>
       )}

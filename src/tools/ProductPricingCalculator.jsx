@@ -1,31 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function ProductPricingCalculator() {
   const [cost, setCost] = useState('20');
   const [marginPercent, setMarginPercent] = useState('40');
   const [shipping, setShipping] = useState('0');
   const [platformFeePercent, setPlatformFeePercent] = useState('0');
-  const [result, setResult] = useState({ valid: false, priceValid: false, recommendedPrice: 0, platformFeeAmount: 0, profitAmount: 0 });
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/product-pricing-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { cost, marginPercent, shipping, platformFeePercent } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [cost, marginPercent, shipping, platformFeePercent]);
-  const { priceValid, recommendedPrice, platformFeeAmount, profitAmount } = result;
+  const costNum = Number(cost);
+  const marginNum = Number(marginPercent);
+  const shippingNum = Number(shipping);
+  const feeNum = Number(platformFeePercent);
+  const valid =
+    Number.isFinite(costNum) && costNum >= 0 &&
+    Number.isFinite(marginNum) && marginNum >= 0 && marginNum < 100 &&
+    Number.isFinite(shippingNum) && shippingNum >= 0 &&
+    Number.isFinite(feeNum) && feeNum >= 0 && feeNum < 100;
+  const baseCost = costNum + shippingNum;
+  const denominator = 1 - marginNum / 100 - feeNum / 100;
+  const priceValid = valid && denominator > 0;
+  const recommendedPrice = priceValid ? baseCost / denominator : 0;
+  const platformFeeAmount = priceValid ? recommendedPrice * (feeNum / 100) : 0;
+  const profitAmount = priceValid ? recommendedPrice - baseCost - platformFeeAmount : 0;
   return (
     <div className="tool-page">
       <h1>Product Pricing Calculator</h1>
@@ -52,13 +45,12 @@ export default function ProductPricingCalculator() {
           <input type="number" min={0} max={99} value={platformFeePercent} onChange={(e) => setPlatformFeePercent(e.target.value)} style={{ width: '80px' }} />
         </label>
       </div>
-      {error && <div className="agent-error">{error}</div>}
-      {!error && !priceValid && (
+      {!priceValid && (
         <div className="tool-error">
           <strong>Error:</strong> Enter non-negative values, and make sure margin % + platform fee % is less than 100.
         </div>
       )}
-      {!error && priceValid && (
+      {priceValid && (
         <div className="timestamp-result">
           <div>
             <strong>Recommended selling price:</strong> <code>{recommendedPrice.toFixed(2)}</code>

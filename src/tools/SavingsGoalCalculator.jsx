@@ -1,33 +1,36 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+function monthsToGoal(target, current, monthlyContribution, annualRatePercent) {
+  if (target <= current) return 0;
+  const r = annualRatePercent / 100 / 12;
+  if (r === 0) {
+    if (monthlyContribution <= 0) return null;
+    return Math.ceil((target - current) / monthlyContribution);
+  }
+  let balance = current;
+  let months = 0;
+  const maxMonths = 1200;
+  while (balance < target && months < maxMonths) {
+    balance = balance * (1 + r) + monthlyContribution;
+    months += 1;
+  }
+  if (balance < target) return null;
+  return months;
+}
 export default function SavingsGoalCalculator() {
   const [target, setTarget] = useState('10000');
   const [current, setCurrent] = useState('1000');
   const [monthly, setMonthly] = useState('200');
   const [rate, setRate] = useState('4');
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/savings-goal-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { target, current, monthly, rate } })
-      })
-        .then((r) => r.json())
-        .then((d) => {
-          if (cancelled) return;
-          if (d.error) setError(d.error);
-          else setData(d);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [target, current, monthly, rate]);
-  const valid = data?.valid ?? false;
-  const months = data?.months ?? null;
-  const totalContributed = data?.totalContributed ?? null;
+  const targetNum = Number(target);
+  const currentNum = Number(current);
+  const monthlyNum = Number(monthly);
+  const rateNum = Number(rate);
+  const valid =
+    Number.isFinite(targetNum) && targetNum > 0 &&
+    Number.isFinite(currentNum) && currentNum >= 0 &&
+    Number.isFinite(monthlyNum) && monthlyNum >= 0 &&
+    Number.isFinite(rateNum) && rateNum >= 0;
+  const months = valid ? monthsToGoal(targetNum, currentNum, monthlyNum, rateNum) : null;
   const years = months !== null ? Math.floor(months / 12) : null;
   const remMonths = months !== null ? months % 12 : null;
   return (
@@ -56,7 +59,6 @@ export default function SavingsGoalCalculator() {
           <input type="number" min={0} step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} style={{ width: '90px' }} />
         </label>
       </div>
-      {error && <div className="agent-error">{error}</div>}
       {!valid && (
         <div className="tool-error">
           <strong>Error:</strong> Enter a positive target, and non-negative current savings, contribution, and rate.
@@ -74,7 +76,7 @@ export default function SavingsGoalCalculator() {
             {remMonths ? `, ${remMonths} month${remMonths === 1 ? '' : 's'}` : ''})
           </div>
           <div>
-            <strong>Total contributed:</strong> {totalContributed.toFixed(2)}
+            <strong>Total contributed:</strong> {(currentNum + monthlyNum * months).toFixed(2)}
           </div>
         </div>
       )}

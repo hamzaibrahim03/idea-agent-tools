@@ -1,42 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+function calculate({ spend, revenue, customers }) {
+  if (spend <= 0) return null;
+  const roiPercent = ((revenue - spend) / spend) * 100;
+  const roas = revenue / spend;
+  const cpa = customers > 0 ? spend / customers : null;
+  return { roiPercent, roas, cpa };
+}
 export default function MarketingRoiCalculator() {
   const [spend, setSpend] = useState('1000');
   const [revenue, setRevenue] = useState('3000');
   const [customers, setCustomers] = useState('20');
-  const [spendValid, setSpendValid] = useState(true);
-  const [result, setResult] = useState(null);
-  const [fetchError, setFetchError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setFetchError('');
-      fetch('/api/tools/marketing-roi-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { spend, revenue, customers } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setFetchError(data.error);
-          else {
-            setSpendValid(data.spendValid);
-            setResult(data.result);
-          }
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [spend, revenue, customers]);
+  const spendNum = parseFloat(spend) || 0;
+  const revenueNum = parseFloat(revenue) || 0;
+  const customersNum = parseFloat(customers) || 0;
+  const result = useMemo(
+    () => calculate({ spend: spendNum, revenue: revenueNum, customers: customersNum }),
+    [spendNum, revenueNum, customersNum]
+  );
   return (
     <div className="tool-page">
       <h1>Marketing ROI Calculator</h1>
       <p className="tool-description">
         Enter your marketing spend, the revenue it generated, and (optionally) the number of
         customers acquired to calculate ROI %, ROAS (return on ad spend), and cost per acquisition
-        using standard marketing formulas.
+        using standard marketing formulas. Runs entirely in your browser.
       </p>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="roi-spend">Marketing spend ($)</label>
@@ -51,7 +39,7 @@ export default function MarketingRoiCalculator() {
           <input id="roi-customers" type="number" min={0} step="1" value={customers} onChange={(e) => setCustomers(e.target.value)} />
         </div>
       </div>
-      {!spendValid || !result ? (
+      {spendNum <= 0 ? (
         <div className="tool-error">Enter a marketing spend greater than 0.</div>
       ) : (
         <div className="timestamp-result">

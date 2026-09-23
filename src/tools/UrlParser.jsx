@@ -1,31 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+function parseUrl(value) {
+  // The browser's own URL parser - correct handling of edge cases
+  // (punycode, default ports, encoding) beats a hand-rolled regex.
+  const url = new URL(value);
+  const params = [...url.searchParams.entries()];
+  return {
+    href: url.href,
+    protocol: url.protocol,
+    username: url.username,
+    password: url.password,
+    host: url.host,
+    hostname: url.hostname,
+    port: url.port,
+    pathname: url.pathname,
+    search: url.search,
+    hash: url.hash,
+    origin: url.origin,
+    params
+  };
+}
 export default function UrlParser() {
   const [input, setInput] = useState('https://user:pass@example.com:8080/path/to/page?foo=1&bar=two#section');
-  const [parsed, setParsed] = useState(null);
-  const [error, setError] = useState('');
-  const [agentError, setAgentError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setAgentError('');
-      fetch('/api/tools/url-parser', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setAgentError(data.error);
-          else {
-            setParsed(data.parsed);
-            setError(data.error);
-          }
-        })
-        .catch((e) => { if (!cancelled) setAgentError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input]);
+  let parsed = null;
+  let error = '';
+  if (input.trim()) {
+    try {
+      parsed = parseUrl(input.trim());
+    } catch {
+      error = 'Not a valid, fully-qualified URL (must include a protocol, e.g. https://).';
+    }
+  }
   return (
     <div className="tool-page">
       <h1>URL Parser</h1>
@@ -33,7 +37,6 @@ export default function UrlParser() {
         Paste a URL to break it down into its protocol, host, port, path, query parameters, and
         hash, using the browser's built-in URL parser. Runs entirely in your browser.
       </p>
-      {agentError && <div className="agent-error">{agentError}</div>}
       <div className="tool-panel">
         <label htmlFor="url-input">URL</label>
         <input

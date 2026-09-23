@@ -1,28 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+const DOMESTIC_ITEMS = [
+  'Government-issued photo ID', 'Boarding pass / tickets', 'Hotel confirmation',
+  'Payment cards and some cash', 'Phone charger', 'Medications',
+  'Weather-appropriate clothing', 'Emergency contact list', 'Copy of itinerary shared with someone at home'
+];
+const INTERNATIONAL_ITEMS = [
+  'Valid passport (check expiration date - many countries require 6+ months validity)',
+  'Visa (check requirements for your destination)',
+  'Travel insurance', 'Vaccination records / health requirements reminder',
+  'Local currency or a card with no foreign transaction fees',
+  'Power plug adapter', 'Copies of important documents (passport photo page, itinerary)',
+  'Emergency contacts and embassy/consulate info', 'International phone plan or SIM',
+  'Check travel advisories for your destination'
+];
 export default function TravelChecklistGenerator() {
   const [destinationType, setDestinationType] = useState('international');
   const [checked, setChecked] = useState({});
-  const [items, setItems] = useState([]);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/tools/travel-checklist-generator', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ input: { destinationType } })
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data.error) setError(data.error);
-        else {
-          setError('');
-          setItems(data.items);
-        }
-      })
-      .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    return () => { cancelled = true; };
-  }, [destinationType]);
+  const items = destinationType === 'international' ? INTERNATIONAL_ITEMS : DOMESTIC_ITEMS;
   function toggle(item) {
     setChecked((c) => ({ ...c, [item]: !c[item] }));
   }
@@ -37,7 +31,6 @@ export default function TravelChecklistGenerator() {
         requirements - always verify current passport/visa/vaccination rules with official sources.
         Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Destination type:

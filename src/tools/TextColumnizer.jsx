@@ -1,33 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+function columnize(items, columnCount) {
+  if (items.length === 0) return '';
+  const rows = Math.ceil(items.length / columnCount);
+  const columns = [];
+  for (let c = 0; c < columnCount; c++) {
+    columns.push(items.slice(c * rows, c * rows + rows));
+  }
+  const widths = columns.map((col) => col.reduce((max, item) => Math.max(max, item.length), 0));
+  const lines = [];
+  for (let r = 0; r < rows; r++) {
+    const cells = columns.map((col, c) => (col[r] !== undefined ? col[r].padEnd(widths[c]) : ''));
+    lines.push(cells.join('  ').trimEnd());
+  }
+  return lines.join('\n');
+}
 export default function TextColumnizer() {
   const [input, setInput] = useState('');
   const [columnCount, setColumnCount] = useState(3);
   const [copied, setCopied] = useState(false);
-  const [output, setOutput] = useState('');
-  const [itemCount, setItemCount] = useState(0);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/text-columnizer', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input, columnCount } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else {
-            setOutput(data.output);
-            setItemCount(data.itemCount);
-          }
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input, columnCount]);
+  const items = useMemo(
+    () => input.split('\n').map((l) => l.trim()).filter(Boolean),
+    [input]
+  );
+  const output = useMemo(
+    () => columnize(items, Math.max(1, Math.min(items.length || 1, Number(columnCount) || 1))),
+    [items, columnCount]
+  );
   async function handleCopy() {
     if (!output) return;
     try {
@@ -45,7 +43,6 @@ export default function TextColumnizer() {
         display or printing. Columns are aligned with padding for a clean monospace layout. Runs
         entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Columns:
@@ -58,7 +55,7 @@ export default function TextColumnizer() {
             style={{ width: '60px' }}
           />
         </label>
-        <span className="tool-placeholder">{itemCount} item{itemCount === 1 ? '' : 's'}</span>
+        <span className="tool-placeholder">{items.length} item{items.length === 1 ? '' : 's'}</span>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
         </button>

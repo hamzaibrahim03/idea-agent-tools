@@ -1,35 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function RoomSizeCalculator() {
   const [mode, setMode] = useState('ratio');
   const [targetArea, setTargetArea] = useState('200');
   const [aspectRatio, setAspectRatio] = useState('1.5');
   const [fixedDimension, setFixedDimension] = useState('10');
-  const [result, setResult] = useState(null);
-  const [validationError, setValidationError] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/room-size-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { mode, targetArea, aspectRatio, fixedDimension } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else {
-            setResult(data.result);
-            setValidationError(data.validationError);
-          }
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [mode, targetArea, aspectRatio, fixedDimension]);
   const areaNum = Number(targetArea);
+  const areaValid = Number.isFinite(areaNum) && areaNum > 0;
+  let result = null;
+  let error = '';
+  if (mode === 'ratio') {
+    const ratioNum = Number(aspectRatio);
+    if (!areaValid) {
+      error = 'Enter a positive target area.';
+    } else if (!Number.isFinite(ratioNum) || ratioNum <= 0) {
+      error = 'Enter a positive aspect ratio (length ÷ width).';
+    } else {
+      const width = Math.sqrt(areaNum / ratioNum);
+      const length = width * ratioNum;
+      result = { width, length };
+    }
+  } else {
+    const fixedNum = Number(fixedDimension);
+    if (!areaValid) {
+      error = 'Enter a positive target area.';
+    } else if (!Number.isFinite(fixedNum) || fixedNum <= 0) {
+      error = 'Enter a positive fixed dimension.';
+    } else {
+      const other = areaNum / fixedNum;
+      result = { fixed: fixedNum, other };
+    }
+  }
   return (
     <div className="tool-page">
       <h1>Room Size Calculator</h1>
@@ -64,9 +64,8 @@ export default function RoomSizeCalculator() {
           </div>
         )}
       </div>
-      {error && <div className="agent-error">{error}</div>}
-      {validationError && <div className="tool-error">{validationError}</div>}
-      {result && !validationError && (
+      {error && <div className="tool-error">{error}</div>}
+      {result && !error && (
         <div className="timestamp-result">
           {mode === 'ratio' ? (
             <>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 const DEFAULT_PHASES = [
   { name: 'Site preparation', days: '5' },
   { name: 'Foundation', days: '10' },
@@ -7,15 +7,18 @@ const DEFAULT_PHASES = [
   { name: 'Electrical & plumbing rough-in', days: '10' },
   { name: 'Finishing', days: '25' }
 ];
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+function addDays(date, days) {
+  const result = new Date(date.getTime());
+  result.setDate(result.getDate() + days);
+  return result;
+}
+function formatDate(date) {
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 export default function ProjectTimelineGenerator() {
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [phases, setPhases] = useState(DEFAULT_PHASES);
   const [copied, setCopied] = useState(false);
-  const [result, setResult] = useState({ validStart: false, schedule: [], totalDays: 0, allValid: false, projectEndIso: null });
-  const [error, setError] = useState('');
   function updatePhase(index, field, value) {
     setPhases((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
   }
@@ -25,34 +28,35 @@ export default function ProjectTimelineGenerator() {
   function removePhase(index) {
     setPhases((prev) => prev.filter((_, i) => i !== index));
   }
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/project-timeline-generator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { startDate, phases } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [startDate, phases]);
-  const { validStart, schedule, totalDays, allValid, projectEndIso } = result;
+  const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
+  const validStart = start instanceof Date && !Number.isNaN(start.getTime());
+  const { schedule, totalDays } = phases.reduce(
+    (acc, p) => {
+      const durationNum = Number(p.days);
+      const validPhase = validStart && Number.isFinite(durationNum) && durationNum > 0;
+      if (!validPhase) {
+        acc.schedule.push({ ...p, validPhase: false });
+        return acc;
+      }
+      const phaseStart = acc.cursor;
+      const phaseEnd = addDays(acc.cursor, durationNum - 1);
+      acc.schedule.push({ ...p, validPhase: true, start: phaseStart, end: phaseEnd });
+      acc.cursor = addDays(acc.cursor, durationNum);
+      acc.totalDays += durationNum;
+      return acc;
+    },
+    { schedule: [], totalDays: 0, cursor: start }
+  );
+  const allValid = validStart && schedule.every((s) => s.validPhase);
+  const projectEnd = allValid && schedule.length > 0 ? schedule[schedule.length - 1].end : null;
   function buildPlainText() {
     const lines = [`Project timeline (start: ${startDate})`, ''];
     schedule.forEach((s, i) => {
       if (!s.validPhase) return;
-      lines.push(`${i + 1}. ${s.name || '(unnamed phase)'} - ${s.days} day(s): ${formatDate(s.startIso)} to ${formatDate(s.endIso)}`);
+      lines.push(`${i + 1}. ${s.name || '(unnamed phase)'} - ${s.days} day(s): ${formatDate(s.start)} to ${formatDate(s.end)}`);
     });
-    if (projectEndIso) {
-      lines.push('', `Total duration: ${totalDays} day(s), finishing ${formatDate(projectEndIso)}`);
+    if (projectEnd) {
+      lines.push('', `Total duration: ${totalDays} day(s), finishing ${formatDate(projectEnd)}`);
     }
     return lines.join('\n');
   }
@@ -85,8 +89,7 @@ export default function ProjectTimelineGenerator() {
           {copied ? 'Copied!' : 'Copy timeline'}
         </button>
       </div>
-      {error && <div className="agent-error">{error}</div>}
-      {!error && !validStart && (
+      {!validStart && (
         <div className="tool-error">
           <strong>Error:</strong> Enter a valid start date.
         </div>
@@ -110,7 +113,7 @@ export default function ProjectTimelineGenerator() {
                 <td>
                   <input
                     type="text"
-                    value={phases[i]?.name ?? s.name}
+                    value={s.name}
                     onChange={(e) => updatePhase(i, 'name', e.target.value)}
                     placeholder="e.g. Foundation"
                     style={{ width: '100%' }}
@@ -120,13 +123,13 @@ export default function ProjectTimelineGenerator() {
                   <input
                     type="number"
                     min={0}
-                    value={phases[i]?.days ?? s.days}
+                    value={s.days}
                     onChange={(e) => updatePhase(i, 'days', e.target.value)}
                     style={{ width: '80px' }}
                   />
                 </td>
-                <td>{s.validPhase ? formatDate(s.startIso) : '—'}</td>
-                <td>{s.validPhase ? formatDate(s.endIso) : '—'}</td>
+                <td>{s.validPhase ? formatDate(s.start) : '—'}</td>
+                <td>{s.validPhase ? formatDate(s.end) : '—'}</td>
                 <td>
                   <button type="button" className="uuid-copy-btn" onClick={() => removePhase(i)} disabled={phases.length <= 1}>
                     Remove
@@ -137,13 +140,13 @@ export default function ProjectTimelineGenerator() {
           </tbody>
         </table>
       </div>
-      {!error && allValid && projectEndIso && (
+      {allValid && projectEnd && (
         <div className="timestamp-result">
           <div>
             <strong>Total duration:</strong> {totalDays} day(s)
           </div>
           <div>
-            <strong>Project finish date:</strong> {formatDate(projectEndIso)}
+            <strong>Project finish date:</strong> {formatDate(projectEnd)}
           </div>
         </div>
       )}

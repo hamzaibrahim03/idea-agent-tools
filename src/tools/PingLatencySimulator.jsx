@@ -1,46 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 const REGIONS = ['US East', 'US West', 'EU West', 'EU Central', 'Asia Pacific (Tokyo)', 'Asia Pacific (Singapore)', 'South America', 'Australia'];
+const BASE_LATENCY_MS = {
+  'US East': { 'US East': 1, 'US West': 60, 'EU West': 80, 'EU Central': 95, 'Asia Pacific (Tokyo)': 150, 'Asia Pacific (Singapore)': 220, 'South America': 110, Australia: 200 },
+  'US West': { 'US West': 1, 'EU West': 140, 'EU Central': 150, 'Asia Pacific (Tokyo)': 100, 'Asia Pacific (Singapore)': 170, 'South America': 170, Australia: 140 },
+  'EU West': { 'EU West': 1, 'EU Central': 15, 'Asia Pacific (Tokyo)': 230, 'Asia Pacific (Singapore)': 170, 'South America': 190, Australia: 260 },
+  'EU Central': { 'EU Central': 1, 'Asia Pacific (Tokyo)': 240, 'Asia Pacific (Singapore)': 160, 'South America': 200, Australia: 270 },
+  'Asia Pacific (Tokyo)': { 'Asia Pacific (Tokyo)': 1, 'Asia Pacific (Singapore)': 70, 'South America': 280, Australia: 105 },
+  'Asia Pacific (Singapore)': { 'Asia Pacific (Singapore)': 1, 'South America': 320, Australia: 95 },
+  'South America': { 'South America': 1, Australia: 320 },
+  Australia: { Australia: 1 }
+};
+function lookupBase(a, b) {
+  if (a === b) return BASE_LATENCY_MS[a][b];
+  return BASE_LATENCY_MS[a]?.[b] ?? BASE_LATENCY_MS[b]?.[a];
+}
+function simulateSample(baseMs) {
+  const jitterBytes = new Uint32Array(1);
+  crypto.getRandomValues(jitterBytes);
+  const jitterFraction = (jitterBytes[0] / 0xffffffff) * 0.3 - 0.05;
+  return Math.max(1, Math.round(baseMs * (1 + jitterFraction)));
+}
 export default function PingLatencySimulator() {
   const [regionA, setRegionA] = useState('US East');
   const [regionB, setRegionB] = useState('EU West');
   const [samples, setSamples] = useState([]);
-  const [baseMs, setBaseMs] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/ping-latency-simulator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { regionA, regionB, simulate: false } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setBaseMs(data.baseMs);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [regionA, regionB]);
+  const baseMs = lookupBase(regionA, regionB);
   function handleSimulate() {
-    setError('');
-    fetch('/api/tools/ping-latency-simulator', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ input: { regionA, regionB, simulate: true } })
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) setError(data.error);
-        else {
-          setBaseMs(data.baseMs);
-          setSamples(data.samples);
-        }
-      })
-      .catch((e) => setError(e.message || 'Failed to compute'));
+    const next = Array.from({ length: 5 }, () => simulateSample(baseMs));
+    setSamples(next);
   }
   const avg = samples.length ? Math.round(samples.reduce((s, v) => s + v, 0) / samples.length) : null;
   return (
@@ -75,18 +62,15 @@ export default function PingLatencySimulator() {
         </label>
         <button onClick={handleSimulate}>Simulate 5 pings</button>
       </div>
-      {error && <div className="agent-error">{error}</div>}
-      {baseMs !== null && (
-        <div className="tool-panel">
-          <label>Typical baseline</label>
-          <div className="timestamp-result">
-            <div>
-              <strong>{regionA}</strong> to <strong>{regionB}</strong>: ~{baseMs}ms round-trip
-              (typical range {Math.round(baseMs * 0.85)}-{Math.round(baseMs * 1.15)}ms)
-            </div>
+      <div className="tool-panel">
+        <label>Typical baseline</label>
+        <div className="timestamp-result">
+          <div>
+            <strong>{regionA}</strong> to <strong>{regionB}</strong>: ~{baseMs}ms round-trip
+            (typical range {Math.round(baseMs * 0.85)}-{Math.round(baseMs * 1.15)}ms)
           </div>
         </div>
-      )}
+      </div>
       {samples.length > 0 && (
         <div className="tool-panel">
           <label>Simulated samples</label>

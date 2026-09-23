@@ -1,41 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function UrlEncoder() {
   const [input, setInput] = useState('');
-  const [output, setOutput] = useState('');
   const [error, setError] = useState('');
-  const [agentError, setAgentError] = useState('');
   const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setAgentError('');
-      fetch('/api/tools/url-encoder-decoder', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { action: 'encode', input } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setAgentError(data.error);
-          else setOutput(data.output);
-        })
-        .catch((e) => { if (!cancelled) setAgentError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input]);
-  async function handleDecode() {
+  const output = input ? encodeURIComponent(input) : '';
+  function handleDecode() {
     if (!input) return;
-    setError('');
     try {
-      const res = await fetch('/api/tools/url-encoder-decoder', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { action: 'decode', input } })
-      });
-      const data = await res.json();
-      if (data.error) setError(data.error);
-      else setInput(data.output);
+      setInput(decodeURIComponent(input));
+      setError('');
     } catch (e) {
       setError(e.message);
     }
@@ -56,7 +29,6 @@ export default function UrlEncoder() {
         Percent-encode text for safe use in a URL, or decode a URL-encoded string back to plain
         text. Runs entirely in your browser.
       </p>
-      {agentError && <div className="agent-error">{agentError}</div>}
       <div className="tool-controls">
         <button onClick={handleDecode} disabled={!input}>
           Decode in place

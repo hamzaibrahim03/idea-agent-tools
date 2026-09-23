@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 const BASES = [
   { label: 'Binary', value: 2 },
   { label: 'Octal', value: 8 },
@@ -8,32 +8,19 @@ const BASES = [
 export default function NumberBaseConverter() {
   const [input, setInput] = useState('255');
   const [fromBase, setFromBase] = useState(10);
-  const [decimalValue, setDecimalValue] = useState(null);
   const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    if (!input.trim()) {
-      setDecimalValue(null);
-      setError('');
-      return undefined;
+  let decimalValue = null;
+  try {
+    if (input.trim()) {
+      const cleaned = input.trim().replace(/^0[xXbBoO]/, '');
+      const value = parseInt(cleaned, fromBase);
+      if (Number.isNaN(value)) throw new Error(`"${input}" is not valid in base ${fromBase}`);
+      decimalValue = value;
+      if (error) setError('');
     }
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/number-base-converter', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input, fromBase } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setDecimalValue(data.decimalValue);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input, fromBase]);
+  } catch (e) {
+    if (!error) setError(e.message);
+  }
   return (
     <div className="tool-page">
       <h1>Number Base Converter</h1>

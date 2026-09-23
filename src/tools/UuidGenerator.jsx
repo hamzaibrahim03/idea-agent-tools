@@ -1,49 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function UuidGenerator() {
   const [count, setCount] = useState(5);
   const [uppercase, setUppercase] = useState(false);
-  const [uuids, setUuids] = useState([]);
+  const [uuids, setUuids] = useState(() => generateMany(5));
   const [copiedAll, setCopiedAll] = useState(false);
-  const [error, setError] = useState('');
-  const [generation, setGeneration] = useState(0);
-  useEffect(() => {
-    let cancelled = false;
-    setError('');
-    fetch('/api/tools/uuid-generator', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ input: { count: 5, uppercase: false } })
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data.error) setError(data.error);
-        else setUuids(data.uuids);
-      })
-      .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  function handleGenerate() {
-    setError('');
-    fetch('/api/tools/uuid-generator', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ input: { count: Math.min(Math.max(count, 1), 100), uppercase } })
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) setError(data.error);
-        else {
-          setUuids(data.uuids);
-          setCopiedAll(false);
-        }
-      })
-      .catch((e) => setError(e.message || 'Failed to compute'));
+  function generateMany(n) {
+    return Array.from({ length: n }, () => crypto.randomUUID());
   }
+  function handleGenerate() {
+    setUuids(generateMany(Math.min(Math.max(count, 1), 100)));
+    setCopiedAll(false);
+  }
+  const displayed = uuids.map((u) => (uppercase ? u.toUpperCase() : u));
   async function copyAll() {
     try {
-      await navigator.clipboard.writeText(uuids.join('\n'));
+      await navigator.clipboard.writeText(displayed.join('\n'));
       setCopiedAll(true);
       setTimeout(() => setCopiedAll(false), 1500);
     } catch {
@@ -59,10 +30,9 @@ export default function UuidGenerator() {
     <div className="tool-page">
       <h1>UUID Generator</h1>
       <p className="tool-description">
-        Generate random UUIDs (version 4), using a cryptographically-random generator - not a fake
-        lookalike.
+        Generate random UUIDs (version 4), using your browser's built-in cryptographically-random
+        generator - not a fake lookalike.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Count:
@@ -80,12 +50,12 @@ export default function UuidGenerator() {
           Uppercase
         </label>
         <button onClick={handleGenerate}>Generate</button>
-        <button onClick={copyAll} disabled={uuids.length === 0}>
+        <button onClick={copyAll} disabled={displayed.length === 0}>
           {copiedAll ? 'Copied!' : 'Copy all'}
         </button>
       </div>
       <ul className="uuid-list">
-        {uuids.map((u, i) => (
+        {displayed.map((u, i) => (
           <li key={i}>
             <code>{u}</code>
             <button className="uuid-copy-btn" onClick={() => copyOne(u)} title="Copy this UUID">

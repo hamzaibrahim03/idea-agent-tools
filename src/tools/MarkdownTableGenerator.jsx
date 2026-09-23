@@ -1,16 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 const ALIGNMENTS = ['left', 'center', 'right'];
 function makeGrid(rows, cols, fill = '') {
   return Array.from({ length: rows }, (_, r) =>
     Array.from({ length: cols }, (_, c) => fill || `Cell ${r + 1}-${c + 1}`)
   );
 }
+function alignmentMarker(align) {
+  if (align === 'center') return ':---:';
+  if (align === 'right') return '---:';
+  return ':---';
+}
+function buildMarkdown(headers, rows, alignments) {
+  const colCount = headers.length;
+  const widths = Array.from({ length: colCount }, (_, c) => {
+    const headerLen = (headers[c] || '').length;
+    const cellLens = rows.map((r) => (r[c] || '').length);
+    return Math.max(3, headerLen, ...cellLens);
+  });
+  const pad = (text, w) => (text || '').padEnd(w, ' ');
+  const headerLine = `| ${headers.map((h, c) => pad(h, widths[c])).join(' | ')} |`;
+  const dividerLine = `| ${alignments.map((a, c) => alignmentMarker(a).padEnd(widths[c], '-')).join(' | ')} |`;
+  const bodyLines = rows.map((row) => `| ${row.map((cell, c) => pad(cell, widths[c])).join(' | ')} |`);
+  return [headerLine, dividerLine, ...bodyLines].join('\n');
+}
 export default function MarkdownTableGenerator() {
   const [headers, setHeaders] = useState(['Header 1', 'Header 2', 'Header 3']);
   const [alignments, setAlignments] = useState(['left', 'left', 'left']);
   const [rows, setRows] = useState(makeGrid(2, 3));
-  const [markdown, setMarkdown] = useState('');
-  const [fetchError, setFetchError] = useState('');
   const [copied, setCopied] = useState(false);
   function updateHeader(index, value) {
     setHeaders((h) => h.map((v, i) => (i === index ? value : v)));
@@ -38,25 +54,7 @@ export default function MarkdownTableGenerator() {
   function removeRow() {
     setRows((r) => (r.length > 1 ? r.slice(0, -1) : r));
   }
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setFetchError('');
-      fetch('/api/tools/markdown-table-generator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { headers, rows, alignments } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setFetchError(data.error);
-          else setMarkdown(data.markdown || '');
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [headers, rows, alignments]);
+  const markdown = buildMarkdown(headers, rows, alignments);
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(markdown);
@@ -70,9 +68,8 @@ export default function MarkdownTableGenerator() {
       <h1>Markdown Table Generator</h1>
       <p className="tool-description">
         Build a table visually - add or remove rows and columns, edit cell text, and set per-column
-        alignment - then get the properly padded Markdown table syntax.
+        alignment - then get the properly padded Markdown table syntax. Runs entirely in your browser.
       </p>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <button onClick={addColumn}>Add column</button>
         <button onClick={removeColumn} disabled={headers.length <= 1}>Remove column</button>

@@ -1,36 +1,41 @@
-import { useEffect, useState } from 'react';
-const CATEGORY_OPTIONS = [
-  { key: 'unit', label: 'Unit' },
-  { key: 'integration', label: 'Integration' },
-  { key: 'e2e', label: 'End-to-end (E2E)' }
-];
+import { useState } from 'react';
+const CATEGORIES = {
+  unit: {
+    label: 'Unit',
+    items: [
+      'Happy path with typical valid input', 'Boundary values (min, max, zero, off-by-one)',
+      'Null / undefined / missing input', 'Empty string / empty array / empty object',
+      'Invalid type input', 'Negative numbers where only positive expected',
+      'Very large input (performance / overflow)', 'Function called with no arguments',
+      'Return value type and shape correctness', 'Error/exception handling paths'
+    ]
+  },
+  integration: {
+    label: 'Integration',
+    items: [
+      'Correct data passed between components/modules', 'Dependent service returns success',
+      'Dependent service returns an error / times out', 'Database read/write consistency',
+      'Correct handling of partial failures', 'Authentication/authorization between components',
+      'Data format mismatches between systems', 'Retry and fallback behavior',
+      'Configuration differences between environments', 'Concurrent access / race conditions'
+    ]
+  },
+  e2e: {
+    label: 'End-to-end (E2E)',
+    items: [
+      'Full happy-path user journey completes successfully', 'Form validation errors shown to user',
+      'Navigation between pages/screens works as expected', 'Session/auth expiration handled gracefully',
+      'Data persists correctly across page reloads', 'Responsive behavior on different screen sizes',
+      'Third-party integration failures handled gracefully', 'Loading and empty states render correctly',
+      'Accessibility of key user flows (keyboard, screen reader)', 'Cross-browser behavior consistency'
+    ]
+  }
+};
 export default function TestCaseChecklistGenerator() {
   const [feature, setFeature] = useState('');
   const [category, setCategory] = useState('unit');
   const [checked, setChecked] = useState({});
-  const [items, setItems] = useState([]);
-  const [label, setLabel] = useState('Unit');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/tools/test-case-checklist-generator', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ input: { category } })
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data.error) setError(data.error);
-        else {
-          setError('');
-          setItems(data.items);
-          setLabel(data.label);
-        }
-      })
-      .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    return () => { cancelled = true; };
-  }, [category]);
+  const items = CATEGORIES[category].items;
   function toggle(item) {
     setChecked((c) => ({ ...c, [item]: !c[item] }));
   }
@@ -45,7 +50,6 @@ export default function TestCaseChecklistGenerator() {
         checklist of things to consider, not AI-generated test cases for your specific code. Runs
         entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <input
           type="text"
@@ -57,15 +61,15 @@ export default function TestCaseChecklistGenerator() {
         <label>
           Testing category:
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            {CATEGORY_OPTIONS.map((c) => (
-              <option key={c.key} value={c.key}>{c.label}</option>
+            {Object.entries(CATEGORIES).map(([key, c]) => (
+              <option key={key} value={key}>{c.label}</option>
             ))}
           </select>
         </label>
       </div>
       <div className="tool-panel">
         <label>
-          {label} test checklist{feature ? ` for "${feature}"` : ''} ({checkedCount}/{items.length} considered)
+          {CATEGORIES[category].label} test checklist{feature ? ` for "${feature}"` : ''} ({checkedCount}/{items.length} considered)
         </label>
         {items.map((item) => (
           <label key={item} className="checkbox-label" style={{ padding: '4px 0' }}>

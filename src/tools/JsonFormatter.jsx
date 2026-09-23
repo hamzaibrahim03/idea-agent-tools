@@ -1,50 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function JsonFormatter() {
   const [input, setInput] = useState('');
   const [indent, setIndent] = useState(2);
-  const [formatted, setFormatted] = useState('');
-  const [error, setError] = useState('');
-  const [fetchError, setFetchError] = useState('');
   const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      if (!input.trim()) {
-        setFormatted('');
-        setError('');
-        return;
-      }
-      setFetchError('');
-      fetch('/api/tools/json-formatter', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input, indent } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) {
-            setError(data.error);
-            setFormatted('');
-          } else {
-            setError('');
-            setFormatted(data.formatted || '');
-          }
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input, indent]);
-  async function handleMinify() {
+  let formatted = '';
+  let error = '';
+  if (input.trim()) {
+    try {
+      formatted = JSON.stringify(JSON.parse(input), null, indent);
+    } catch (e) {
+      error = e.message;
+    }
+  }
+  function handleMinify() {
     if (!input.trim()) return;
     try {
-      const r = await fetch('/api/tools/json-formatter', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input, indent: 0 } })
-      });
-      const data = await r.json();
-      if (!data.error && data.formatted) setInput(data.formatted);
+      const parsed = JSON.parse(input);
+      setInput(JSON.stringify(parsed));
     } catch {
     }
   }
@@ -61,9 +33,9 @@ export default function JsonFormatter() {
     <div className="tool-page">
       <h1>JSON Formatter &amp; Validator</h1>
       <p className="tool-description">
-        Paste JSON to format, validate, and minify it.
+        Paste JSON to format, validate, and minify it. Runs entirely in your browser - nothing is
+        sent to a server.
       </p>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <label>
           Indent:

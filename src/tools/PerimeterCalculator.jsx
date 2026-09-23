@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function PerimeterCalculator() {
   const [shape, setShape] = useState('rectangle');
   const [length, setLength] = useState('10');
@@ -9,34 +9,34 @@ export default function PerimeterCalculator() {
   const [radius, setRadius] = useState('4');
   const [polySide, setPolySide] = useState('5');
   const [polyCount, setPolyCount] = useState('6');
-  const [perimeter, setPerimeter] = useState(null);
-  const [domainError, setDomainError] = useState('');
-  const [note, setNote] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/perimeter-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { shape, length, width, sideA, sideB, sideC, radius, polySide, polyCount } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error !== undefined) {
-            setPerimeter(data.perimeter);
-            setDomainError(data.error);
-            setNote(data.note);
-          } else if (data.error) {
-            setError(data.error);
-          }
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [shape, length, width, sideA, sideB, sideC, radius, polySide, polyCount]);
+  let perimeter = null;
+  let error = '';
+  let note = '';
+  if (shape === 'rectangle') {
+    const l = Number(length);
+    const w = Number(width);
+    if (!(l > 0 && w > 0)) error = 'Enter positive length and width.';
+    else perimeter = 2 * (l + w);
+  } else if (shape === 'triangle') {
+    const a = Number(sideA);
+    const b = Number(sideB);
+    const c = Number(sideC);
+    if (!(a > 0 && b > 0 && c > 0)) error = 'Enter three positive side lengths.';
+    else if (a + b <= c || a + c <= b || b + c <= a) error = 'These three sides cannot form a valid triangle.';
+    else perimeter = a + b + c;
+  } else if (shape === 'circle') {
+    const r = Number(radius);
+    if (!(r > 0)) error = 'Enter a positive radius.';
+    else {
+      perimeter = 2 * Math.PI * r;
+      note = 'Circumference';
+    }
+  } else {
+    const s = Number(polySide);
+    const n = Number(polyCount);
+    if (!(s > 0) || !(Number.isInteger(n) && n >= 3)) error = 'Enter a positive side length and an integer number of sides (3 or more).';
+    else perimeter = s * n;
+  }
   return (
     <div className="tool-page">
       <h1>Perimeter Calculator</h1>
@@ -104,9 +104,8 @@ export default function PerimeterCalculator() {
           </div>
         </div>
       )}
-      {error && <div className="agent-error">{error}</div>}
-      {!error && domainError && <div className="tool-error">{domainError}</div>}
-      {!error && perimeter !== null && !domainError && (
+      {error && <div className="tool-error">{error}</div>}
+      {perimeter !== null && !error && (
         <div className="timestamp-result">
           <strong>{note || 'Perimeter'}:</strong> {perimeter.toFixed(3)}
         </div>

@@ -1,29 +1,46 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+function wrapText(text, width) {
+  if (width < 1) return text;
+  return text
+    .split('\n')
+    .map((line) => wrapLine(line, width))
+    .join('\n');
+}
+function wrapLine(line, width) {
+  if (line.length === 0) return '';
+  const words = line.split(' ');
+  const outputLines = [];
+  let current = '';
+  for (const word of words) {
+    if (word.length > width) {
+      if (current) {
+        outputLines.push(current);
+        current = '';
+      }
+      let remaining = word;
+      while (remaining.length > width) {
+        outputLines.push(remaining.slice(0, width));
+        remaining = remaining.slice(width);
+      }
+      current = remaining;
+      continue;
+    }
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length > width) {
+      outputLines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) outputLines.push(current);
+  return outputLines.join('\n');
+}
 export default function TextWrapper() {
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(80);
   const [copied, setCopied] = useState(false);
-  const [output, setOutput] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/text-wrapper', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input, width } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setOutput(data.output);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input, width]);
+  const output = useMemo(() => wrapText(input, width), [input, width]);
   async function handleCopy() {
     if (!output) return;
     try {
@@ -40,7 +57,6 @@ export default function TextWrapper() {
         Wrap plain text to a fixed line width, breaking on word boundaries. Only words longer than
         the wrap width itself get broken mid-word. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Wrap width:

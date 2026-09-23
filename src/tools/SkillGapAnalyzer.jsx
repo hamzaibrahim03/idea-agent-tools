@@ -1,31 +1,29 @@
-import { useEffect, useState } from 'react';
-const ROLE_PRESET_KEYS = ['Frontend Developer', 'Data Analyst', 'Product Manager', 'Digital Marketer'];
+import { useMemo, useState } from 'react';
+const ROLE_PRESETS = {
+  'Frontend Developer': ['HTML', 'CSS', 'JavaScript', 'React', 'Git', 'Responsive Design', 'TypeScript', 'Testing'],
+  'Data Analyst': ['SQL', 'Excel', 'Python', 'Statistics', 'Data Visualization', 'Tableau', 'A/B Testing'],
+  'Product Manager': ['Roadmapping', 'User Research', 'SQL', 'Agile', 'Stakeholder Management', 'Prioritization', 'Analytics'],
+  'Digital Marketer': ['SEO', 'Content Strategy', 'Google Analytics', 'Email Marketing', 'Social Media', 'Copywriting', 'A/B Testing']
+};
+function parseSkills(text) {
+  return [...new Set(text.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean))];
+}
 export default function SkillGapAnalyzer() {
   const [currentSkillsText, setCurrentSkillsText] = useState('JavaScript, HTML, CSS, Git');
   const [preset, setPreset] = useState('Frontend Developer');
   const [customTarget, setCustomTarget] = useState('');
   const [useCustom, setUseCustom] = useState(false);
-  const [analysis, setAnalysis] = useState({ overlap: [], gap: [], extra: [], targetCount: 0, targetSkillsText: '' });
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/skill-gap-analyzer', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { currentSkillsText, preset, customTarget, useCustom } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setAnalysis(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [currentSkillsText, preset, customTarget, useCustom]);
+  const targetSkillsText = useCustom ? customTarget : ROLE_PRESETS[preset].join(', ');
+  const analysis = useMemo(() => {
+    const current = parseSkills(currentSkillsText);
+    const target = parseSkills(targetSkillsText);
+    const currentSet = new Set(current);
+    const targetSet = new Set(target);
+    const overlap = target.filter((s) => currentSet.has(s));
+    const gap = target.filter((s) => !currentSet.has(s));
+    const extra = current.filter((s) => !targetSet.has(s));
+    return { overlap, gap, extra, targetCount: target.length };
+  }, [currentSkillsText, targetSkillsText]);
   return (
     <div className="tool-page">
       <h1>Skill Gap Analyzer</h1>
@@ -35,7 +33,6 @@ export default function SkillGapAnalyzer() {
         real AI analysis, just a straightforward difference between two skill lists. Runs entirely
         in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label className="checkbox-label">
           <input type="checkbox" checked={useCustom} onChange={(e) => setUseCustom(e.target.checked)} />
@@ -45,7 +42,7 @@ export default function SkillGapAnalyzer() {
           <label>
             Target role:
             <select value={preset} onChange={(e) => setPreset(e.target.value)}>
-              {ROLE_PRESET_KEYS.map((r) => (
+              {Object.keys(ROLE_PRESETS).map((r) => (
                 <option key={r} value={r}>
                   {r}
                 </option>
@@ -63,7 +60,7 @@ export default function SkillGapAnalyzer() {
           <label htmlFor="sga-target">Target role skills (comma-separated)</label>
           <textarea
             id="sga-target"
-            value={useCustom ? customTarget : analysis.targetSkillsText}
+            value={useCustom ? customTarget : targetSkillsText}
             onChange={(e) => setCustomTarget(e.target.value)}
             readOnly={!useCustom}
             style={{ minHeight: 100 }}

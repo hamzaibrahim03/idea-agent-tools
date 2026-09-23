@@ -1,28 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+function toSentenceCase(text) {
+  if (!text) return '';
+  const lowered = text.toLowerCase();
+  const segments = lowered.match(/[^.!?]*[.!?]+|[^.!?]+$/g) || [];
+  return segments
+    .map((segment) => {
+      const match = segment.match(/[a-z0-9]/i);
+      if (!match) return segment;
+      const idx = segment.indexOf(match[0]);
+      return segment.slice(0, idx) + segment[idx].toUpperCase() + segment.slice(idx + 1);
+    })
+    .join('');
+}
 export default function SentenceCaseConverter() {
   const [input, setInput] = useState('');
-  const [output, setOutput] = useState('');
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/sentence-case-converter', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setOutput(data.output);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input]);
+  const output = useMemo(() => toSentenceCase(input), [input]);
   async function handleCopy() {
     if (!output) return;
     try {
@@ -39,7 +32,6 @@ export default function SentenceCaseConverter() {
         Convert text so each sentence starts with a capital letter and the rest is lowercase,
         splitting on ".", "!", and "?" boundaries. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 const FALLBACK_ZONES = [
   'UTC',
   'America/New_York',
@@ -20,43 +20,44 @@ const FALLBACK_ZONES = [
   'Australia/Sydney',
   'Pacific/Auckland'
 ];
+function getAvailableZones() {
+  try {
+    if (typeof Intl.supportedValuesOf === 'function') {
+      const zones = Intl.supportedValuesOf('timeZone');
+      if (zones && zones.length) return zones;
+    }
+  } catch {
+  }
+  return FALLBACK_ZONES;
+}
+function hourInZone(referenceDateUtc, utcHour, timeZone) {
+  const probe = new Date(
+    Date.UTC(
+      referenceDateUtc.getUTCFullYear(),
+      referenceDateUtc.getUTCMonth(),
+      referenceDateUtc.getUTCDate(),
+      utcHour
+    )
+  );
+  const dtf = new Intl.DateTimeFormat('en-US', { timeZone, hour: '2-digit', hour12: false });
+  const parts = dtf.formatToParts(probe);
+  const hourPart = parts.find((p) => p.type === 'hour')?.value ?? '00';
+  return Number(hourPart) % 24;
+}
+function isWorkHour(hour) {
+  return hour >= 9 && hour < 17;
+}
 export default function TimeZoneMeetingPlanner() {
+  const availableZones = getAvailableZones();
   const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   const [zones, setZones] = useState(() => {
     const defaults = ['America/New_York', 'Europe/London', 'Asia/Tokyo'];
     return defaults.includes(localZone) ? defaults : [localZone, ...defaults];
   });
-  const [availableZones, setAvailableZones] = useState(FALLBACK_ZONES);
-  const [zoneToAdd, setZoneToAdd] = useState(FALLBACK_ZONES[0]);
+  const [zoneToAdd, setZoneToAdd] = useState(availableZones[0] || 'UTC');
   const [proposedZone, setProposedZone] = useState(localZone);
   const [proposedHour, setProposedHour] = useState(10);
-  const [grid, setGrid] = useState([]);
-  const [hours, setHours] = useState(Array.from({ length: 24 }, (_, i) => i));
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/time-zone-meeting-planner', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { zones, proposedZone, proposedHour } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else {
-            setAvailableZones(data.availableZones);
-            setHours(data.hours);
-            setGrid(data.grid);
-            setZoneToAdd((prev) => (data.availableZones.includes(prev) ? prev : data.availableZones[0] || 'UTC'));
-          }
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [zones, proposedZone, proposedHour]);
+  const referenceDate = new Date();
   function handleAddZone() {
     if (zoneToAdd && !zones.includes(zoneToAdd)) {
       setZones((prev) => [...prev, zoneToAdd]);
@@ -65,6 +66,14 @@ export default function TimeZoneMeetingPlanner() {
   function handleRemoveZone(z) {
     setZones((prev) => prev.filter((x) => x !== z));
   }
+  function findUtcHourForLocal(zone, localHour) {
+    for (let utcHour = 0; utcHour < 24; utcHour++) {
+      if (hourInZone(referenceDate, utcHour, zone) === localHour) return utcHour;
+    }
+    return localHour;
+  }
+  const proposedUtcHour = findUtcHourForLocal(proposedZone, Number(proposedHour));
+  const hours = Array.from({ length: 24 }, (_, i) => i);
   return (
     <div className="tool-page">
       <h1>Timezone Meeting Planner</h1>
@@ -74,7 +83,6 @@ export default function TimeZoneMeetingPlanner() {
         zone to see the equivalent local time - and whether it falls inside or outside work hours -
         in every other zone. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Add timezone:
@@ -125,34 +133,41 @@ export default function TimeZoneMeetingPlanner() {
               </tr>
             </thead>
             <tbody>
-              {grid.map((g) => (
-                <tr key={g.zone}>
-                  <td style={{ whiteSpace: 'nowrap' }}>
-                    <strong>{g.zone}</strong>
-                    <button
-                      className="uuid-copy-btn"
-                      style={{ marginLeft: 8 }}
-                      onClick={() => handleRemoveZone(g.zone)}
-                      title="Remove this timezone"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                  {g.cells.map((cell) => (
-                    <td
-                      key={cell.utcHour}
-                      title={`${String(cell.localHour).padStart(2, '0')}:00 local`}
-                      style={{
-                        padding: 0,
-                        height: 22,
-                        background: cell.work ? 'var(--accent-bg)' : 'transparent',
-                        outline: cell.isProposed ? '2px solid var(--accent)' : 'none',
-                        outlineOffset: -2
-                      }}
-                    />
-                  ))}
-                </tr>
-              ))}
+              {zones.map((z) => {
+                return (
+                  <tr key={z}>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <strong>{z}</strong>
+                      <button
+                        className="uuid-copy-btn"
+                        style={{ marginLeft: 8 }}
+                        onClick={() => handleRemoveZone(z)}
+                        title="Remove this timezone"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                    {hours.map((utcHour) => {
+                      const localHour = hourInZone(referenceDate, utcHour, z);
+                      const work = isWorkHour(localHour);
+                      const isProposed = utcHour === proposedUtcHour;
+                      return (
+                        <td
+                          key={utcHour}
+                          title={`${String(localHour).padStart(2, '0')}:00 local`}
+                          style={{
+                            padding: 0,
+                            height: 22,
+                            background: work ? 'var(--accent-bg)' : 'transparent',
+                            outline: isProposed ? '2px solid var(--accent)' : 'none',
+                            outlineOffset: -2
+                          }}
+                        />
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -161,18 +176,22 @@ export default function TimeZoneMeetingPlanner() {
         Shaded cells mark each zone's 9:00-17:00 work hours for today. The outlined column marks the
         proposed meeting hour.
       </div>
-      {grid.length > 0 && (
+      {zones.length > 0 && (
         <ul className="uuid-list" style={{ marginTop: 16 }}>
-          {grid.map((g) => (
-            <li key={g.zone}>
-              <span>
-                <strong>{g.zone}</strong>
-              </span>
-              <code style={{ fontSize: 16 }}>
-                {String(g.proposedLocalHour).padStart(2, '0')}:00 {g.proposedIsWork ? '(work hours)' : '(off hours)'}
-              </code>
-            </li>
-          ))}
+          {zones.map((z) => {
+            const proposedLocalHour = hourInZone(referenceDate, proposedUtcHour, z);
+            const proposedIsWork = isWorkHour(proposedLocalHour);
+            return (
+              <li key={z}>
+                <span>
+                  <strong>{z}</strong>
+                </span>
+                <code style={{ fontSize: 16 }}>
+                  {String(proposedLocalHour).padStart(2, '0')}:00 {proposedIsWork ? '(work hours)' : '(off hours)'}
+                </code>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

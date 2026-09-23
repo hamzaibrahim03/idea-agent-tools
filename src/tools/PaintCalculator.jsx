@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 const DEFAULT_COVERAGE_SQFT_PER_GAL = 350;
 export default function PaintCalculator() {
   const [wallLength, setWallLength] = useState('40');
@@ -6,31 +6,21 @@ export default function PaintCalculator() {
   const [openingsArea, setOpeningsArea] = useState('20');
   const [coats, setCoats] = useState('2');
   const [coverage, setCoverage] = useState(String(DEFAULT_COVERAGE_SQFT_PER_GAL));
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/paint-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { wallLength, wallHeight, openingsArea, coats, coverage } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [wallLength, wallHeight, openingsArea, coats, coverage]);
-  const valid = result?.valid ?? false;
-  const netArea = result?.netArea ?? 0;
-  const totalAreaToPaint = result?.totalAreaToPaint ?? 0;
-  const gallonsNeeded = result?.gallonsNeeded ?? null;
+  const lengthNum = Number(wallLength);
+  const heightNum = Number(wallHeight);
+  const openingsNum = Number(openingsArea);
+  const coatsNum = Number(coats);
+  const coverageNum = Number(coverage);
+  const valid =
+    Number.isFinite(lengthNum) && lengthNum > 0 &&
+    Number.isFinite(heightNum) && heightNum > 0 &&
+    Number.isFinite(openingsNum) && openingsNum >= 0 &&
+    Number.isFinite(coatsNum) && coatsNum > 0 &&
+    Number.isFinite(coverageNum) && coverageNum > 0;
+  const grossArea = valid ? lengthNum * heightNum : 0;
+  const netArea = valid ? Math.max(0, grossArea - openingsNum) : 0;
+  const totalAreaToPaint = valid ? netArea * coatsNum : 0;
+  const gallonsNeeded = valid && netArea > 0 ? totalAreaToPaint / coverageNum : null;
   return (
     <div className="tool-page">
       <h1>Paint Coverage Calculator</h1>
@@ -61,18 +51,17 @@ export default function PaintCalculator() {
           <input id="paint-coverage" type="number" min={1} value={coverage} onChange={(e) => setCoverage(e.target.value)} />
         </div>
       </div>
-      {error && <div className="agent-error">{error}</div>}
-      {!error && !valid && (
+      {!valid && (
         <div className="tool-error">
           <strong>Error:</strong> Enter positive dimensions, at least 1 coat, and a positive coverage rate.
         </div>
       )}
-      {!error && valid && netArea <= 0 && (
+      {valid && netArea <= 0 && (
         <div className="tool-error">
           <strong>Error:</strong> Net area after subtracting openings must be greater than zero.
         </div>
       )}
-      {!error && gallonsNeeded !== null && (
+      {gallonsNeeded !== null && (
         <div className="timestamp-result">
           <div>
             <strong>Net area to paint:</strong> {netArea.toFixed(1)} sq ft

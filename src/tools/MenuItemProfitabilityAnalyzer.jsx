@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function MenuItemProfitabilityAnalyzer() {
   const [items, setItems] = useState([
     { id: 1, name: 'Burger', cost: '3.50', price: '12.00', sold: '400' },
@@ -6,9 +6,6 @@ export default function MenuItemProfitabilityAnalyzer() {
     { id: 3, name: 'Steak', cost: '9.00', price: '24.00', sold: '80' }
   ]);
   const [sortBy, setSortBy] = useState('totalProfit');
-  const [rows, setRows] = useState([]);
-  const [grandTotalProfit, setGrandTotalProfit] = useState(0);
-  const [fetchError, setFetchError] = useState('');
   function updateItem(id, field, value) {
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
   }
@@ -18,37 +15,32 @@ export default function MenuItemProfitabilityAnalyzer() {
   function removeItem(id) {
     setItems((prev) => prev.filter((it) => it.id !== id));
   }
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setFetchError('');
-      fetch('/api/tools/menu-item-profitability-analyzer', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { items, sortBy } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setFetchError(data.error);
-          else {
-            setRows(data.rows || []);
-            setGrandTotalProfit(data.grandTotalProfit || 0);
-          }
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [items, sortBy]);
+  const rows = items
+    .map((it) => {
+      const cost = Number(it.cost);
+      const price = Number(it.price);
+      const sold = Number(it.sold);
+      const valid = Number.isFinite(cost) && cost >= 0 && Number.isFinite(price) && price > 0 && Number.isFinite(sold) && sold >= 0;
+      if (!valid) return { ...it, valid: false };
+      const profitPerItem = price - cost;
+      const totalProfit = profitPerItem * sold;
+      const totalRevenue = price * sold;
+      return { ...it, valid: true, profitPerItem, totalProfit, totalRevenue };
+    })
+    .sort((a, b) => {
+      if (!a.valid) return 1;
+      if (!b.valid) return -1;
+      return b[sortBy] - a[sortBy];
+    });
+  const grandTotalProfit = rows.reduce((sum, r) => sum + (r.valid ? r.totalProfit : 0), 0);
   return (
     <div className="tool-page">
       <h1>Menu Item Profitability Analyzer</h1>
       <p className="tool-description">
         Add menu items with their cost, price, and number sold in a period to compute profit per
         item and total profit contribution - a menu engineering style analysis sorted to show your
-        most and least profitable items.
+        most and least profitable items. Runs entirely in your browser.
       </p>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <label>
           Sort by:

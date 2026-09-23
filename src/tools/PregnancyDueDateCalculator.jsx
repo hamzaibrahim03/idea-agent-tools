@@ -1,4 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+function estimateDueDate(lmpDate) {
+  const lmp = new Date(lmpDate);
+  if (Number.isNaN(lmp.getTime())) return null;
+  const dueDate = new Date(lmp.getTime() + 280 * MS_PER_DAY);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const lmpMidnight = new Date(lmp);
+  lmpMidnight.setHours(0, 0, 0, 0);
+  const daysSinceLmp = Math.floor((today - lmpMidnight) / MS_PER_DAY);
+  const gestationalWeeks = Math.floor(daysSinceLmp / 7);
+  const gestationalDays = daysSinceLmp % 7;
+  return { dueDate, daysSinceLmp, gestationalWeeks, gestationalDays };
+}
 const todayStr = () => new Date().toISOString().slice(0, 10);
 export default function PregnancyDueDateCalculator() {
   const [lmpDate, setLmpDate] = useState(() => {
@@ -6,27 +20,7 @@ export default function PregnancyDueDateCalculator() {
     d.setDate(d.getDate() - 42);
     return d.toISOString().slice(0, 10);
   });
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/pregnancy-due-date-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { lmpDate, nowIso: new Date().toISOString() } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data.result);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [lmpDate]);
+  const result = estimateDueDate(lmpDate);
   const inFuture = result && result.daysSinceLmp < 0;
   return (
     <div className="tool-page">
@@ -45,13 +39,12 @@ export default function PregnancyDueDateCalculator() {
         </label>
         <button onClick={() => setLmpDate(todayStr())}>Today</button>
       </div>
-      {error && <div className="agent-error">{error}</div>}
-      {!error && !result && <div className="tool-error">Enter a valid date.</div>}
-      {!error && result && (
+      {!result && <div className="tool-error">Enter a valid date.</div>}
+      {result && (
         <div className="timestamp-result">
           <div>
             <strong>Estimated due date:</strong>{' '}
-            {new Date(result.dueDateIso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+            {result.dueDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
           </div>
           {!inFuture ? (
             <div>

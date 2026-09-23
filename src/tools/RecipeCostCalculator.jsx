@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function RecipeCostCalculator() {
   const [ingredients, setIngredients] = useState([
     { id: 1, name: 'Flour', costPerUnit: '0.80', quantity: '5' },
@@ -6,8 +6,6 @@ export default function RecipeCostCalculator() {
     { id: 3, name: 'Butter', costPerUnit: '5.00', quantity: '1' }
   ]);
   const [servings, setServings] = useState('12');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
   function updateIngredient(id, field, value) {
     setIngredients((prev) => prev.map((i) => (i.id === id ? { ...i, [field]: value } : i)));
   }
@@ -17,29 +15,16 @@ export default function RecipeCostCalculator() {
   function removeIngredient(id) {
     setIngredients((prev) => prev.filter((i) => i.id !== id));
   }
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/recipe-cost-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { ingredients, servings } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [ingredients, servings]);
-  const rows = result?.rows ?? ingredients.map((i) => ({ ...i, subtotal: null }));
-  const totalRecipeCost = result?.totalRecipeCost ?? 0;
-  const servingsValid = result?.servingsValid ?? false;
-  const costPerServing = result?.costPerServing ?? null;
+  const rows = ingredients.map((i) => {
+    const cost = Number(i.costPerUnit);
+    const qty = Number(i.quantity);
+    const valid = Number.isFinite(cost) && cost >= 0 && Number.isFinite(qty) && qty >= 0;
+    return { ...i, subtotal: valid ? cost * qty : null };
+  });
+  const totalRecipeCost = rows.reduce((sum, r) => sum + (r.subtotal || 0), 0);
+  const servingsNum = Number(servings);
+  const servingsValid = Number.isFinite(servingsNum) && servingsNum > 0;
+  const costPerServing = servingsValid ? totalRecipeCost / servingsNum : null;
   return (
     <div className="tool-page">
       <h1>Recipe Cost Calculator</h1>
@@ -48,7 +33,6 @@ export default function RecipeCostCalculator() {
         of servings it yields, and get the total recipe cost and cost per serving. Runs entirely in
         your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Servings yielded:
@@ -82,7 +66,7 @@ export default function RecipeCostCalculator() {
                   <input type="number" min={0} step="0.01" value={r.quantity} onChange={(e) => updateIngredient(r.id, 'quantity', e.target.value)} style={{ width: '90px' }} />
                 </td>
                 <td>
-                  <code>{r.subtotal !== null && r.subtotal !== undefined ? r.subtotal.toFixed(2) : '-'}</code>
+                  <code>{r.subtotal !== null ? r.subtotal.toFixed(2) : '-'}</code>
                 </td>
                 <td>
                   <button type="button" className="uuid-copy-btn" onClick={() => removeIngredient(r.id)}>

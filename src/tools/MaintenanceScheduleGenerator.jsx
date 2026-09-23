@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -6,11 +6,13 @@ const DEFAULT_EQUIPMENT = [
   { name: 'CNC Mill #1', intervalDays: '30', lastServiced: todayIso() },
   { name: 'Forklift #2', intervalDays: '90', lastServiced: todayIso() }
 ];
+function addDays(isoDate, days) {
+  const d = new Date(isoDate + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d;
+}
 export default function MaintenanceScheduleGenerator() {
   const [equipment, setEquipment] = useState(DEFAULT_EQUIPMENT);
-  const [rows, setRows] = useState([]);
-  const [sorted, setSorted] = useState([]);
-  const [fetchError, setFetchError] = useState('');
   function updateItem(index, field, value) {
     setEquipment((prev) => prev.map((e, i) => (i === index ? { ...e, [field]: value } : e)));
   }
@@ -20,36 +22,29 @@ export default function MaintenanceScheduleGenerator() {
   function removeItem(index) {
     setEquipment((prev) => prev.filter((_, i) => i !== index));
   }
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setFetchError('');
-      fetch('/api/tools/maintenance-schedule-generator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { equipment } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setFetchError(data.error);
-          else {
-            setRows(data.rows || []);
-            setSorted(data.sorted || []);
-          }
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [equipment]);
+  const now = new Date();
+  const rows = equipment
+    .map((e) => {
+      const interval = Number(e.intervalDays);
+      const validRow = Number.isFinite(interval) && interval > 0 && !!e.lastServiced;
+      if (!validRow) return { ...e, validRow, dueDate: null, daysUntilDue: null };
+      const dueDate = addDays(e.lastServiced, interval);
+      const daysUntilDue = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+      return { ...e, validRow, dueDate, daysUntilDue };
+    })
+    .slice()
+    .sort((a, b) => {
+      if (a.daysUntilDue === null) return 1;
+      if (b.daysUntilDue === null) return -1;
+      return a.daysUntilDue - b.daysUntilDue;
+    });
   return (
     <div className="tool-page">
       <h1>Maintenance Schedule Generator</h1>
       <p className="tool-description">
         Add equipment with a maintenance interval and last-serviced date, and get each item's next due
-        date - sorted by urgency, soonest first.
+        date - sorted by urgency, soonest first. Runs entirely in your browser.
       </p>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <button type="button" onClick={addItem}>
           Add equipment
@@ -69,9 +64,10 @@ export default function MaintenanceScheduleGenerator() {
           </thead>
           <tbody>
             {equipment.map((e, i) => {
-              const row = rows[i];
-              const dueDate = row?.dueDate || null;
-              const daysUntilDue = row?.daysUntilDue ?? null;
+              const interval = Number(e.intervalDays);
+              const validRow = Number.isFinite(interval) && interval > 0 && !!e.lastServiced;
+              const dueDate = validRow ? addDays(e.lastServiced, interval) : null;
+              const daysUntilDue = dueDate ? Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24)) : null;
               return (
                 <tr key={i}>
                   <td>
@@ -83,7 +79,7 @@ export default function MaintenanceScheduleGenerator() {
                   <td>
                     <input type="date" value={e.lastServiced} onChange={(ev) => updateItem(i, 'lastServiced', ev.target.value)} />
                   </td>
-                  <td>{dueDate || '-'}</td>
+                  <td>{dueDate ? dueDate.toISOString().slice(0, 10) : '-'}</td>
                   <td>
                     {daysUntilDue === null ? (
                       '-'
@@ -106,11 +102,11 @@ export default function MaintenanceScheduleGenerator() {
           </tbody>
         </table>
       </div>
-      {sorted.length > 0 && sorted[0].validRow && (
+      {rows.length > 0 && rows[0].validRow && (
         <div className="timestamp-result">
           <div>
-            <strong>Most urgent:</strong> {sorted[0].name || '(unnamed)'} -{' '}
-            {sorted[0].daysUntilDue < 0 ? `overdue by ${Math.abs(sorted[0].daysUntilDue)} day(s)` : `due in ${sorted[0].daysUntilDue} day(s)`}
+            <strong>Most urgent:</strong> {rows[0].name || '(unnamed)'} -{' '}
+            {rows[0].daysUntilDue < 0 ? `overdue by ${Math.abs(rows[0].daysUntilDue)} day(s)` : `due in ${rows[0].daysUntilDue} day(s)`}
           </div>
         </div>
       )}

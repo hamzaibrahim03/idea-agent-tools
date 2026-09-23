@@ -1,4 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+function buildUrl(width, height, bgColor, textColor, text) {
+  const dimensions = height ? `${width}x${height}` : `${width}`;
+  const params = new URLSearchParams();
+  if (text) params.set('text', text);
+  const colors = bgColor.replace('#', '') + (textColor ? '/' + textColor.replace('#', '') : '');
+  const query = params.toString();
+  return `https://placehold.co/${dimensions}/${colors}${query ? '?' + query : ''}`;
+}
 export default function PlaceholderImageGenerator() {
   const [width, setWidth] = useState('600');
   const [height, setHeight] = useState('400');
@@ -6,27 +14,9 @@ export default function PlaceholderImageGenerator() {
   const [textColor, setTextColor] = useState('#333333');
   const [text, setText] = useState('');
   const [copied, setCopied] = useState(false);
-  const [url, setUrl] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/placeholder-image-generator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { width, height, bgColor, textColor, text } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setUrl(data.url);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [width, height, bgColor, textColor, text]);
+  const widthNum = Math.max(1, Math.min(4000, Number(width) || 1));
+  const heightNum = height ? Math.max(1, Math.min(4000, Number(height) || 1)) : null;
+  const url = buildUrl(widthNum, heightNum, bgColor, textColor, text);
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(url);
@@ -66,7 +56,6 @@ export default function PlaceholderImageGenerator() {
           <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Hero image" style={{ width: '140px' }} />
         </label>
       </div>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-panel">
         <label htmlFor="placeholder-url">Generated URL</label>
         <input id="placeholder-url" type="text" value={url} readOnly style={{ fontFamily: 'var(--mono)' }} />
@@ -74,7 +63,7 @@ export default function PlaceholderImageGenerator() {
       <div className="tool-controls">
         <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy URL'}</button>
       </div>
-      {url && <img src={url} alt="Placeholder preview" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />}
+      <img src={url} alt="Placeholder preview" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
     </div>
   );
 }

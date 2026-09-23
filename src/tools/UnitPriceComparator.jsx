@@ -1,4 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+function unitPrice(price, quantity) {
+  const p = Number(price);
+  const q = Number(quantity);
+  if (!price || !quantity || Number.isNaN(p) || Number.isNaN(q) || q <= 0 || p < 0) return null;
+  return p / q;
+}
 export default function UnitPriceComparator() {
   const [priceA, setPriceA] = useState('5');
   const [qtyA, setQtyA] = useState('12');
@@ -7,28 +13,18 @@ export default function UnitPriceComparator() {
   const [qtyB, setQtyB] = useState('20');
   const [labelB, setLabelB] = useState('Product B');
   const [unit, setUnit] = useState('oz');
-  const [result, setResult] = useState({ perUnitA: null, perUnitB: null, winner: null, savingsPct: null });
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/unit-price-comparator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { priceA, qtyA, priceB, qtyB } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [priceA, qtyA, priceB, qtyB]);
-  const { perUnitA, perUnitB, winner, savingsPct } = result;
+  const perUnitA = unitPrice(priceA, qtyA);
+  const perUnitB = unitPrice(priceB, qtyB);
+  let winner = null;
+  if (perUnitA !== null && perUnitB !== null) {
+    if (perUnitA < perUnitB) winner = 'A';
+    else if (perUnitB < perUnitA) winner = 'B';
+    else winner = 'tie';
+  }
+  const savingsPct =
+    winner === 'A' || winner === 'B'
+      ? Math.abs(((perUnitA - perUnitB) / Math.max(perUnitA, perUnitB)) * 100)
+      : null;
   return (
     <div className="tool-page">
       <h1>Unit Price Comparator</h1>
@@ -36,7 +32,6 @@ export default function UnitPriceComparator() {
         Compare two products by price and quantity (e.g. "$5 for 12oz" vs "$8 for 20oz") to see
         which one is the better deal per unit. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Unit label:

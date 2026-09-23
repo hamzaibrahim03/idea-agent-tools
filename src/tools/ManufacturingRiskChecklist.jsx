@@ -1,48 +1,86 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+const SECTIONS = [
+  {
+    section: 'Machine Safety',
+    items: [
+      'Machine guards in place and functional on all equipment',
+      'Emergency stop buttons accessible and tested',
+      'Lockout/tagout (LOTO) procedures followed for maintenance',
+      'Operators trained on machine-specific safety procedures',
+      'Moving parts and pinch points clearly marked'
+    ]
+  },
+  {
+    section: 'Chemical Handling',
+    items: [
+      'Safety Data Sheets (SDS) available for all chemicals on site',
+      'Chemicals stored in labeled, compatible containers',
+      'Spill kits available near chemical storage and use areas',
+      'Ventilation adequate in areas with chemical use',
+      'Incompatible chemicals stored separately'
+    ]
+  },
+  {
+    section: 'Personal Protective Equipment (PPE)',
+    items: [
+      'Safety glasses/goggles available and worn where required',
+      'Hearing protection available in high-noise areas',
+      'Gloves appropriate to task (cut, chemical, heat resistant as needed)',
+      'Steel-toe or safety footwear required in production areas',
+      'PPE inspected regularly and replaced when worn'
+    ]
+  },
+  {
+    section: 'Fire Safety',
+    items: [
+      'Fire extinguishers accessible, charged, and inspected',
+      'Fire exits clearly marked and unobstructed',
+      'Flammable materials stored in approved cabinets',
+      'Fire alarm and sprinkler systems tested per schedule',
+      'Evacuation plan posted and staff trained'
+    ]
+  },
+  {
+    section: 'Electrical Safety',
+    items: [
+      'Electrical panels accessible and unobstructed',
+      'Cords and cables inspected for damage, not run across walkways',
+      'Equipment properly grounded',
+      'Only qualified personnel perform electrical work',
+      'Wet or hazardous areas use appropriately rated equipment'
+    ]
+  }
+];
+function itemKey(sectionIdx, itemIdx) {
+  return `${sectionIdx}-${itemIdx}`;
+}
 export default function ManufacturingRiskChecklist() {
   const [checked, setChecked] = useState({});
   const [copied, setCopied] = useState(false);
-  const [sections, setSections] = useState([]);
-  const [totalItems, setTotalItems] = useState(0);
-  const [checkedCount, setCheckedCount] = useState(0);
-  const [summary, setSummary] = useState('');
-  const [fetchError, setFetchError] = useState('');
   function toggle(key) {
     setChecked((prev) => ({ ...prev, [key]: !prev[key] }));
   }
   function resetAll() {
     setChecked({});
   }
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setFetchError('');
-      fetch('/api/tools/manufacturing-risk-checklist', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { checked } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setFetchError(data.error);
-          else {
-            setSections(data.sections || []);
-            setTotalItems(data.totalItems || 0);
-            setCheckedCount(data.checkedCount || 0);
-            setSummary(data.summary || '');
-          }
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [checked]);
-  function itemKey(sectionIdx, itemIdx) {
-    return `${sectionIdx}-${itemIdx}`;
+  const totalItems = SECTIONS.reduce((sum, s) => sum + s.items.length, 0);
+  const checkedCount = Object.values(checked).filter(Boolean).length;
+  function buildSummary() {
+    const lines = ['Manufacturing Risk Checklist Summary', ''];
+    SECTIONS.forEach((s, si) => {
+      lines.push(s.section + ':');
+      s.items.forEach((item, ii) => {
+        const done = checked[itemKey(si, ii)];
+        lines.push(`  [${done ? 'x' : ' '}] ${item}`);
+      });
+      lines.push('');
+    });
+    lines.push(`Completed: ${checkedCount} / ${totalItems}`);
+    return lines.join('\n');
   }
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(summary);
+      await navigator.clipboard.writeText(buildSummary());
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -56,8 +94,8 @@ export default function ManufacturingRiskChecklist() {
         chemical handling, PPE, fire safety, and electrical safety - with items you can check off as
         you go. Copy or print a summary of checked vs. unchecked items. This is a general reference
         checklist, not a substitute for a formal safety audit or your local regulatory requirements.
+        Runs entirely in your browser.
       </p>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <button type="button" onClick={handleCopy}>
           {copied ? 'Copied!' : 'Copy summary'}
@@ -74,7 +112,7 @@ export default function ManufacturingRiskChecklist() {
           <strong>Progress:</strong> {checkedCount} / {totalItems} items checked
         </div>
       </div>
-      {sections.map((s, si) => (
+      {SECTIONS.map((s, si) => (
         <div className="tool-panel" key={s.section}>
           <label>{s.section}</label>
           <ul className="uuid-list">

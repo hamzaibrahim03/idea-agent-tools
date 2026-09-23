@@ -1,4 +1,14 @@
 import { useState } from 'react';
+function randomInt(min, max) {
+  const range = max - min + 1;
+  const maxUint32 = 0xffffffff;
+  const limit = maxUint32 - (maxUint32 % range);
+  let x;
+  do {
+    x = crypto.getRandomValues(new Uint32Array(1))[0];
+  } while (x >= limit);
+  return min + (x % range);
+}
 export default function RandomNumberGenerator() {
   const [min, setMin] = useState(1);
   const [max, setMax] = useState(100);
@@ -6,26 +16,29 @@ export default function RandomNumberGenerator() {
   const [allowDuplicates, setAllowDuplicates] = useState(true);
   const [results, setResults] = useState([]);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   function handleGenerate() {
-    setLoading(true);
+    const lo = Math.min(Number(min), Number(max));
+    const hi = Math.max(Number(min), Number(max));
+    const n = Math.max(1, Math.min(1000, Number(count) || 1));
+    if (!allowDuplicates && hi - lo + 1 < n) {
+      setError('Range too small for that many unique numbers.');
+      return;
+    }
     setError('');
-    fetch('/api/tools/random-number-generator', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ input: { min, max, count, allowDuplicates } })
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) {
-          setError(data.error);
-          setResults([]);
-        } else {
-          setResults(data.results);
+    if (allowDuplicates) {
+      setResults(Array.from({ length: n }, () => randomInt(lo, hi)));
+    } else {
+      const pool = [];
+      const seen = new Set();
+      while (pool.length < n) {
+        const v = randomInt(lo, hi);
+        if (!seen.has(v)) {
+          seen.add(v);
+          pool.push(v);
         }
-      })
-      .catch((e) => setError(e.message || 'Failed to compute'))
-      .finally(() => setLoading(false));
+      }
+      setResults(pool);
+    }
   }
   return (
     <div className="tool-page">
@@ -51,7 +64,7 @@ export default function RandomNumberGenerator() {
           <input type="checkbox" checked={allowDuplicates} onChange={(e) => setAllowDuplicates(e.target.checked)} />
           Allow duplicates
         </label>
-        <button onClick={handleGenerate} disabled={loading}>Generate</button>
+        <button onClick={handleGenerate}>Generate</button>
       </div>
       {error && <div className="tool-error">{error}</div>}
       {results.length > 0 && (

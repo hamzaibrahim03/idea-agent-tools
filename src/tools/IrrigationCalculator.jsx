@@ -1,36 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function IrrigationCalculator() {
   const [areaAcres, setAreaAcres] = useState('10');
   const [waterReqIn, setWaterReqIn] = useState('1.5');
   const [efficiency, setEfficiency] = useState('85');
   const [outputUnit, setOutputUnit] = useState('gallons');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  const [fetchError, setFetchError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setFetchError('');
-      fetch('/api/tools/irrigation-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { areaAcres, waterReqIn, efficiency } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) {
-            setError(data.error);
-            setResult(null);
-          } else {
-            setError('');
-            setResult(data);
-          }
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [areaAcres, waterReqIn, efficiency]);
+  const areaNum = Number(areaAcres);
+  const waterReqNum = Number(waterReqIn);
+  const efficiencyNum = Number(efficiency);
+  const valid =
+    Number.isFinite(areaNum) && areaNum > 0 &&
+    Number.isFinite(waterReqNum) && waterReqNum > 0 &&
+    Number.isFinite(efficiencyNum) && efficiencyNum > 0 && efficiencyNum <= 100;
+  let volumeGallons = null;
+  if (valid) {
+    const grossGallons = areaNum * waterReqNum * 27154;
+    volumeGallons = grossGallons / (efficiencyNum / 100);
+  }
+  const volumeLiters = volumeGallons !== null ? volumeGallons * 3.78541 : null;
   return (
     <div className="tool-page">
       <h1>Irrigation Calculator</h1>
@@ -38,7 +24,7 @@ export default function IrrigationCalculator() {
         Enter field area, crop water requirement, and your irrigation system's efficiency to estimate
         total water volume needed per week. Water requirement varies by crop and climate, so enter
         your own figure (e.g. from local agricultural extension guidance) rather than a looked-up
-        value.
+        value. Runs entirely in your browser.
       </p>
       <div className="tool-grid">
         <div className="tool-panel">
@@ -61,19 +47,18 @@ export default function IrrigationCalculator() {
           </select>
         </div>
       </div>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
-      {error && (
+      {!valid && (
         <div className="tool-error">
-          <strong>Error:</strong> {error}
+          <strong>Error:</strong> Enter a positive field area, positive water requirement, and efficiency between 1 and 100%.
         </div>
       )}
-      {result && !error && (
+      {valid && (
         <div className="timestamp-result">
           <div>
             <strong>Water needed per week:</strong>{' '}
             {outputUnit === 'gallons'
-              ? `${result.volumeGallons.toLocaleString(undefined, { maximumFractionDigits: 0 })} gallons`
-              : `${result.volumeLiters.toLocaleString(undefined, { maximumFractionDigits: 0 })} liters`}
+              ? `${volumeGallons.toLocaleString(undefined, { maximumFractionDigits: 0 })} gallons`
+              : `${volumeLiters.toLocaleString(undefined, { maximumFractionDigits: 0 })} liters`}
           </div>
         </div>
       )}

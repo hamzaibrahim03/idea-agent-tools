@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 const DEFAULTS = [
   { key: 'mobile', label: 'Mobile', value: 640 },
   { key: 'tablet', label: 'Tablet', value: 768 },
@@ -8,8 +8,6 @@ const DEFAULTS = [
 export default function ResponsiveBreakpointGenerator() {
   const [breakpoints, setBreakpoints] = useState(DEFAULTS);
   const [copied, setCopied] = useState(false);
-  const [cssOutput, setCssOutput] = useState('');
-  const [error, setError] = useState('');
   function updateValue(key, value) {
     const n = Math.max(0, parseInt(value, 10) || 0);
     setBreakpoints((bps) => bps.map((b) => (b.key === key ? { ...b, value: n } : b)));
@@ -17,25 +15,10 @@ export default function ResponsiveBreakpointGenerator() {
   function resetDefaults() {
     setBreakpoints(DEFAULTS);
   }
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/responsive-breakpoint-generator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { breakpoints } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setCssOutput(data.cssOutput);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [breakpoints]);
+  const sorted = [...breakpoints].sort((a, b) => a.value - b.value);
+  const cssOutput = sorted
+    .map((b) => `@media (min-width: ${b.value}px) {\n  /* ${b.label} styles */\n}`)
+    .join('\n\n');
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(cssOutput);
@@ -52,7 +35,6 @@ export default function ResponsiveBreakpointGenerator() {
         mobile, tablet, desktop, and wide screens), with copyable media query snippets. Customize
         the pixel values to match your own project. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <button onClick={resetDefaults}>Reset to defaults</button>
         <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy CSS'}</button>

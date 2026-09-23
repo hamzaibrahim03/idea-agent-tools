@@ -1,32 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function RentalYieldCalculator() {
   const [price, setPrice] = useState('300000');
   const [annualRent, setAnnualRent] = useState('24000');
   const [annualExpenses, setAnnualExpenses] = useState('4000');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/rental-yield-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { price, annualRent, annualExpenses } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [price, annualRent, annualExpenses]);
-  const valid = result?.valid ?? false;
-  const grossYield = result?.grossYield ?? 0;
-  const netYield = result?.netYield ?? 0;
+  const priceNum = Number(price);
+  const rentNum = Number(annualRent);
+  const expensesNum = Number(annualExpenses);
+  const valid = Number.isFinite(priceNum) && priceNum > 0 && Number.isFinite(rentNum) && rentNum >= 0 && Number.isFinite(expensesNum) && expensesNum >= 0;
+  const grossYield = valid ? (rentNum / priceNum) * 100 : 0;
+  const netYield = valid ? ((rentNum - expensesNum) / priceNum) * 100 : 0;
   return (
     <div className="tool-page">
       <h1>Rental Yield Calculator</h1>
@@ -49,7 +31,6 @@ export default function RentalYieldCalculator() {
           <input type="number" min={0} value={annualExpenses} onChange={(e) => setAnnualExpenses(e.target.value)} style={{ width: '100px' }} />
         </label>
       </div>
-      {error && <div className="agent-error">{error}</div>}
       {!valid && (
         <div className="tool-error">
           <strong>Error:</strong> Enter a positive property price and non-negative rent/expenses.

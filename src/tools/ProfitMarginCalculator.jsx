@@ -1,29 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function ProfitMarginCalculator() {
   const [cost, setCost] = useState('40');
   const [sellingPrice, setSellingPrice] = useState('60');
-  const [result, setResult] = useState({ valid: false, profitAmount: 0, grossMarginPercent: 0, markupPercent: 0 });
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/profit-margin-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { cost, sellingPrice } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [cost, sellingPrice]);
-  const { valid, profitAmount, grossMarginPercent, markupPercent } = result;
+  const costNum = Number(cost);
+  const priceNum = Number(sellingPrice);
+  const valid = Number.isFinite(costNum) && costNum >= 0 && Number.isFinite(priceNum) && priceNum >= 0;
+  const profitAmount = valid ? priceNum - costNum : 0;
+  const grossMarginPercent = valid && priceNum > 0 ? (profitAmount / priceNum) * 100 : 0;
+  const markupPercent = valid && costNum > 0 ? (profitAmount / costNum) * 100 : 0;
   return (
     <div className="tool-page">
       <h1>Profit Margin Calculator</h1>
@@ -41,13 +25,12 @@ export default function ProfitMarginCalculator() {
           <input type="number" min={0} value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} style={{ width: '100px' }} />
         </label>
       </div>
-      {error && <div className="agent-error">{error}</div>}
-      {!error && !valid && (
+      {!valid && (
         <div className="tool-error">
           <strong>Error:</strong> Enter non-negative cost and selling price values.
         </div>
       )}
-      {!error && valid && (
+      {valid && (
         <div className="timestamp-result">
           <div>
             <strong>Profit amount:</strong> <code>{profitAmount.toFixed(2)}</code>

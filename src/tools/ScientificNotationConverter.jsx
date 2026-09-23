@@ -1,32 +1,61 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+function toScientific(n, precision) {
+  if (n === 0) return { mantissa: 0, exponent: 0 };
+  const sign = n < 0 ? -1 : 1;
+  const abs = Math.abs(n);
+  const exponent = Math.floor(Math.log10(abs));
+  let mantissa = abs / 10 ** exponent;
+  let e = exponent;
+  if (mantissa >= 10) {
+    mantissa /= 10;
+    e += 1;
+  } else if (mantissa < 1) {
+    mantissa *= 10;
+    e -= 1;
+  }
+  const rounded = Number(mantissa.toFixed(precision));
+  if (rounded >= 10) {
+    return { mantissa: sign * (rounded / 10), exponent: e + 1 };
+  }
+  return { mantissa: sign * rounded, exponent: e };
+}
+const SUPERSCRIPT_MAP = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+function toSuperscript(n) {
+  return String(n)
+    .split('')
+    .map((ch) => SUPERSCRIPT_MAP[ch] ?? ch)
+    .join('');
+}
 export default function ScientificNotationConverter() {
   const [mode, setMode] = useState('to-scientific');
   const [decimalInput, setDecimalInput] = useState('0.000123');
   const [mantissaInput, setMantissaInput] = useState('1.23');
   const [exponentInput, setExponentInput] = useState('-4');
   const [precision, setPrecision] = useState('6');
-  const [data, setData] = useState({ validationError: '', scientificResult: '', decimalResult: '' });
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/scientific-notation-converter', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { mode, decimalInput, mantissaInput, exponentInput, precision } })
-      })
-        .then((r) => r.json())
-        .then((d) => {
-          if (cancelled) return;
-          if (d.error) setError(d.error);
-          else setData(d);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [mode, decimalInput, mantissaInput, exponentInput, precision]);
-  const { validationError, scientificResult, decimalResult } = data;
+  let error = '';
+  let scientificResult = '';
+  let decimalResult = '';
+  const precisionNum = Math.max(0, Math.min(15, Number(precision) || 0));
+  if (mode === 'to-scientific') {
+    const n = Number(decimalInput);
+    if (decimalInput.trim() === '' || Number.isNaN(n)) {
+      error = 'Enter a valid decimal number.';
+    } else {
+      const { mantissa, exponent } = toScientific(n, precisionNum);
+      scientificResult = `${mantissa} × 10${toSuperscript(exponent)}`;
+    }
+  } else {
+    const m = Number(mantissaInput);
+    const e = Number(exponentInput);
+    if (mantissaInput.trim() === '' || exponentInput.trim() === '' || Number.isNaN(m) || Number.isNaN(e)) {
+      error = 'Enter a valid mantissa and integer exponent.';
+    } else if (!Number.isInteger(e)) {
+      error = 'The exponent must be a whole number.';
+    } else {
+      const value = m * 10 ** e;
+      decimalResult = value.toLocaleString('en-US', { maximumFractionDigits: 20, useGrouping: false });
+    }
+  }
   return (
     <div className="tool-page">
       <h1>Scientific Notation Converter</h1>
@@ -88,14 +117,13 @@ export default function ScientificNotationConverter() {
           </label>
         </div>
       )}
-      {error && <div className="agent-error">{error}</div>}
-      {validationError && <div className="tool-error">{validationError}</div>}
-      {!validationError && mode === 'to-scientific' && (
+      {error && <div className="tool-error">{error}</div>}
+      {!error && mode === 'to-scientific' && (
         <div className="timestamp-result">
           <strong>{scientificResult}</strong>
         </div>
       )}
-      {!validationError && mode === 'to-decimal' && (
+      {!error && mode === 'to-decimal' && (
         <div className="timestamp-result">
           <strong style={{ fontFamily: 'var(--mono)' }}>{decimalResult}</strong>
         </div>

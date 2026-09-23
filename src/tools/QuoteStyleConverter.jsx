@@ -1,4 +1,39 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+function convertQuotes(code, targetQuote) {
+  const quoteChars = ['"', "'", '`'];
+  let result = '';
+  let i = 0;
+  while (i < code.length) {
+    const ch = code[i];
+    if (quoteChars.includes(ch)) {
+      const openQuote = ch;
+      let j = i + 1;
+      let content = '';
+      while (j < code.length) {
+        if (code[j] === '\\' && j + 1 < code.length) {
+          content += code[j] + code[j + 1];
+          j += 2;
+          continue;
+        }
+        if (code[j] === openQuote) break;
+        content += code[j];
+        j++;
+      }
+      if (j >= code.length) {
+        result += code.slice(i);
+        break;
+      }
+      const unescaped = content.replace(new RegExp(`\\\\${openQuote}`, 'g'), openQuote);
+      const reescaped = unescaped.replace(new RegExp(targetQuote, 'g'), `\\${targetQuote}`);
+      result += targetQuote + reescaped + targetQuote;
+      i = j + 1;
+    } else {
+      result += ch;
+      i++;
+    }
+  }
+  return result;
+}
 const QUOTE_OPTIONS = [
   { value: "'", label: "Single quotes (')" },
   { value: '"', label: 'Double quotes (")' },
@@ -7,33 +42,8 @@ const QUOTE_OPTIONS = [
 export default function QuoteStyleConverter() {
   const [input, setInput] = useState(`const name = "world";\nconst greeting = 'Hello, ' + name + "!";`);
   const [targetQuote, setTargetQuote] = useState("'");
-  const [output, setOutput] = useState('');
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    if (!input) {
-      setOutput('');
-      setError('');
-      return undefined;
-    }
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/quote-style-converter', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input, targetQuote } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setOutput(data.output);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input, targetQuote]);
+  const output = input ? convertQuotes(input, targetQuote) : '';
   async function handleCopy() {
     if (!output) return;
     try {
@@ -65,7 +75,6 @@ export default function QuoteStyleConverter() {
           {copied ? 'Copied!' : 'Copy output'}
         </button>
       </div>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="quote-input">Input</label>

@@ -1,39 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function RoadTripFuelCalculator() {
   const [distance, setDistance] = useState('500');
   const [efficiency, setEfficiency] = useState('30');
   const [fuelPrice, setFuelPrice] = useState('3.50');
   const [tankRange, setTankRange] = useState('350');
   const [unit, setUnit] = useState('mi/gal');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/road-trip-fuel-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { distance, efficiency, fuelPrice, tankRange, unit } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [distance, efficiency, fuelPrice, tankRange, unit]);
+  const d = parseFloat(distance) || 0;
+  const eff = parseFloat(efficiency) || 0;
+  const price = parseFloat(fuelPrice) || 0;
+  const range = parseFloat(tankRange) || 0;
   const isMetric = unit === 'km/L';
-  const d = result?.d ?? 0;
-  const eff = result?.eff ?? 0;
-  const range = result?.range ?? 0;
-  const fuelUnitLabel = result?.fuelUnitLabel ?? (isMetric ? 'L' : 'gal');
-  const fuelNeeded = result?.fuelNeeded ?? 0;
-  const totalCost = result?.totalCost ?? 0;
-  const stops = result?.stops ?? 0;
+  const fuelUnitLabel = isMetric ? 'L' : 'gal';
+  const fuelNeeded = eff > 0 ? d / eff : 0;
+  const totalCost = fuelNeeded * price;
+  const stops = range > 0 ? Math.max(0, Math.ceil(d / range) - 1) : 0;
   return (
     <div className="tool-page">
       <h1>Road Trip Fuel Calculator</h1>
@@ -42,7 +22,6 @@ export default function RoadTripFuelCalculator() {
         (this tool has no access to real routing or mapping data) to estimate total fuel cost and
         how many fuel stops you'll likely need. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Units:

@@ -1,33 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
+function translateWord(word) {
+  const leading = word.match(/^[a-zA-Z]+/);
+  if (!leading) return word;
+  const core = leading[0];
+  const rest = word.slice(core.length);
+  const firstChar = core[0];
+  const isUpperFirst = firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase();
+  const lower = core.toLowerCase();
+  if (VOWELS.has(lower[0])) {
+    const translated = lower + 'way';
+    return (isUpperFirst ? capitalize(translated) : translated) + rest;
+  }
+  let splitIndex = 0;
+  while (splitIndex < lower.length && !VOWELS.has(lower[splitIndex])) {
+    if (lower[splitIndex] === 'q' && lower[splitIndex + 1] === 'u') {
+      splitIndex += 2;
+      continue;
+    }
+    splitIndex++;
+  }
+  if (splitIndex === 0 || splitIndex >= lower.length) {
+    const translated = lower + 'ay';
+    return (isUpperFirst ? capitalize(translated) : translated) + rest;
+  }
+  const translated = lower.slice(splitIndex) + lower.slice(0, splitIndex) + 'ay';
+  return (isUpperFirst ? capitalize(translated) : translated) + rest;
+}
+function capitalize(word) {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+function translateText(text) {
+  return text.replace(/[a-zA-Z]+/g, translateWord);
+}
 export default function PigLatinTranslator() {
   const [input, setInput] = useState('');
-  const [output, setOutput] = useState('');
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    if (input === '') {
-      setOutput('');
-      setError('');
-      return undefined;
-    }
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/pig-latin-translator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setOutput(data.output);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input]);
+  const output = useMemo(() => translateText(input), [input]);
   async function handleCopy() {
     if (!output) return;
     try {
@@ -50,7 +59,6 @@ export default function PigLatinTranslator() {
           {copied ? 'Copied!' : 'Copy output'}
         </button>
       </div>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="pig-input">English text</label>

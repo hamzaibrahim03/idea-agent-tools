@@ -1,29 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+function toAlternatingCase(text, startUpper) {
+  let upperNext = startUpper;
+  return [...text]
+    .map((ch) => {
+      if (!/[a-zA-Z]/.test(ch)) return ch;
+      const result = upperNext ? ch.toUpperCase() : ch.toLowerCase();
+      upperNext = !upperNext;
+      return result;
+    })
+    .join('');
+}
 export default function TextToUpperLowerAlternating() {
   const [input, setInput] = useState('');
   const [startUpper, setStartUpper] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [output, setOutput] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/text-to-upper-lower-alternating', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input, startUpper } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setOutput(data.output);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input, startUpper]);
+  const output = useMemo(() => toAlternatingCase(input, startUpper), [input, startUpper]);
   async function handleCopy() {
     if (!output) return;
     try {
@@ -40,7 +31,6 @@ export default function TextToUpperLowerAlternating() {
         Convert text to aLtErNaTiNg CaSe (aka "sPoNgEbOb case") by flipping upper/lower case for
         each letter, skipping spaces and punctuation. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label className="checkbox-label">
           <input type="checkbox" checked={startUpper} onChange={() => setStartUpper((v) => !v)} />

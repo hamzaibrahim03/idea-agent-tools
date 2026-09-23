@@ -1,44 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+function emiFormula(principal, annualRatePercent, months) {
+  if (principal <= 0 || months <= 0) return null;
+  const r = annualRatePercent / 12 / 100;
+  const emi = r === 0 ? principal / months : (principal * r * (1 + r) ** months) / ((1 + r) ** months - 1);
+  const totalPayment = emi * months;
+  const totalInterest = totalPayment - principal;
+  return { emi, totalPayment, totalInterest };
+}
 export default function LoanEmiCalculator() {
   const [principal, setPrincipal] = useState('100000');
   const [rate, setRate] = useState('10');
   const [term, setTerm] = useState('12');
   const [termUnit, setTermUnit] = useState('months');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  const [fetchError, setFetchError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setFetchError('');
-      fetch('/api/tools/loan-emi-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { principal, rate, term, termUnit } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) {
-            setError(data.error);
-            setResult(null);
-          } else {
-            setError('');
-            setResult(data);
-          }
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [principal, rate, term, termUnit]);
+  const principalNum = Number(principal);
+  const rateNum = Number(rate);
+  const termNum = Number(term);
+  const months = termUnit === 'years' ? termNum * 12 : termNum;
+  const valid = Number.isFinite(principalNum) && principalNum > 0 && Number.isFinite(rateNum) && rateNum >= 0 && Number.isFinite(months) && months > 0;
+  const result = valid ? emiFormula(principalNum, rateNum, months) : null;
   return (
     <div className="tool-page">
       <h1>Loan EMI Calculator</h1>
       <p className="tool-description">
         Calculate the Equated Monthly Installment (EMI) for a loan, along with total interest and
-        total payment, using the standard reducing-balance amortization formula.
+        total payment, using the standard reducing-balance amortization formula. Runs entirely in
+        your browser.
       </p>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <label>
           Loan amount:
@@ -60,12 +47,12 @@ export default function LoanEmiCalculator() {
           </select>
         </label>
       </div>
-      {error && (
+      {!valid && (
         <div className="tool-error">
-          <strong>Error:</strong> {error}
+          <strong>Error:</strong> Enter a positive loan amount, a non-negative interest rate, and a positive term.
         </div>
       )}
-      {result && !error && (
+      {result && (
         <div className="timestamp-result">
           <div>
             <strong>Monthly EMI:</strong> {result.emi.toFixed(2)}
@@ -77,7 +64,7 @@ export default function LoanEmiCalculator() {
             <strong>Total payment:</strong> {result.totalPayment.toFixed(2)}
           </div>
           <div>
-            <strong>Number of installments:</strong> {result.months}
+            <strong>Number of installments:</strong> {months}
           </div>
         </div>
       )}

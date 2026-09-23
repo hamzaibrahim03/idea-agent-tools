@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 const PRESETS = {
   residential: { label: 'Residential (dwelling) - 3 W/sq ft', wattsPerSqFt: 3 },
   office: { label: 'Office - 3.5 W/sq ft', wattsPerSqFt: 3.5 },
@@ -12,44 +12,26 @@ export default function LightingLoadCalculator() {
   const [preset, setPreset] = useState('residential');
   const [wattsPerSqFt, setWattsPerSqFt] = useState(PRESETS.residential.wattsPerSqFt);
   const [voltage, setVoltage] = useState('120');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  const [fetchError, setFetchError] = useState('');
   function handlePreset(key) {
     setPreset(key);
     setWattsPerSqFt(PRESETS[key].wattsPerSqFt);
   }
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setFetchError('');
-      fetch('/api/tools/lighting-load-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { area, wattsPerSqFt, voltage } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) {
-            setError(data.error);
-            setResult(null);
-          } else {
-            setError('');
-            setResult(data);
-          }
-        })
-        .catch((e) => { if (!cancelled) setFetchError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [area, wattsPerSqFt, voltage]);
+  const areaNum = Number(area);
+  const wattsNum = Number(wattsPerSqFt);
+  const voltageNum = Number(voltage);
+  const valid =
+    Number.isFinite(areaNum) && areaNum > 0 &&
+    Number.isFinite(wattsNum) && wattsNum > 0 &&
+    Number.isFinite(voltageNum) && voltageNum > 0;
+  const totalWatts = valid ? areaNum * wattsNum : 0;
+  const totalAmps = valid ? totalWatts / voltageNum : 0;
   return (
     <div className="tool-page">
       <h1>Lighting Load Calculator</h1>
       <p className="tool-description">
         Estimate general lighting load in watts and amps from floor area and a standard
         watts-per-square-foot unit load figure (in the style of NEC/NFPA 70 general lighting load
-        tables), adjustable by occupancy type.
+        tables), adjustable by occupancy type. Runs entirely in your browser.
       </p>
       <div className="tool-error">
         <strong>Licensed professional required:</strong> This is a rough general-lighting load
@@ -57,7 +39,6 @@ export default function LightingLoadCalculator() {
         sizing, or installation, a licensed electrician or engineer must verify all values against
         local code (e.g. NEC in the US).
       </div>
-      {fetchError && <div className="agent-error">{fetchError}</div>}
       <div className="tool-controls">
         <label>
           Occupancy type:
@@ -94,18 +75,19 @@ export default function LightingLoadCalculator() {
           <input id="ll-voltage" type="number" min={0} value={voltage} onChange={(e) => setVoltage(e.target.value)} />
         </div>
       </div>
-      {error && (
+      {!valid && (
         <div className="tool-error">
-          <strong>Error:</strong> {error}
+          <strong>Error:</strong> Enter positive values for floor area, lighting load factor, and
+          voltage.
         </div>
       )}
-      {result && !error && (
+      {valid && (
         <div className="timestamp-result">
           <div>
-            <strong>Total lighting load:</strong> {result.totalWatts.toFixed(0)} W
+            <strong>Total lighting load:</strong> {totalWatts.toFixed(0)} W
           </div>
           <div>
-            <strong>Required amperage:</strong> {result.totalAmps.toFixed(2)} A
+            <strong>Required amperage:</strong> {totalAmps.toFixed(2)} A
           </div>
         </div>
       )}

@@ -1,32 +1,91 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+const EMOJI_MAP = {
+  'ice cream': '🍦',
+  'thank you': '🙏',
+  'good morning': '🌅',
+  'good night': '🌙',
+  happy: '😊',
+  sad: '😢',
+  love: '❤️',
+  fire: '🔥',
+  cool: '😎',
+  laugh: '😂',
+  laughing: '😂',
+  cry: '😭',
+  crying: '😭',
+  angry: '😠',
+  tired: '😴',
+  sleep: '😴',
+  party: '🎉',
+  celebrate: '🎉',
+  music: '🎵',
+  star: '⭐',
+  sun: '☀️',
+  rain: '🌧️',
+  snow: '❄️',
+  coffee: '☕',
+  pizza: '🍕',
+  burger: '🍔',
+  beer: '🍺',
+  cake: '🎂',
+  dog: '🐶',
+  cat: '🐱',
+  money: '💰',
+  rich: '🤑',
+  idea: '💡',
+  smart: '🧠',
+  strong: '💪',
+  run: '🏃',
+  walk: '🚶',
+  car: '🚗',
+  plane: '✈️',
+  home: '🏠',
+  work: '💼',
+  time: '⏰',
+  book: '📚',
+  phone: '📱',
+  computer: '💻',
+  game: '🎮',
+  win: '🏆',
+  lose: '😞',
+  yes: '✅',
+  no: '❌',
+  ok: '👍',
+  wow: '😮',
+  hot: '🥵',
+  cold: '🥶',
+  hungry: '🍽️',
+  thirsty: '🥤',
+  sick: '🤒',
+  scared: '😱',
+  funny: '😆',
+  bored: '😑',
+  excited: '🤩',
+  confused: '😕',
+  peace: '✌️',
+  world: '🌍',
+  heart: '❤️',
+  friend: '🤝'
+};
+const SORTED_KEYS = Object.keys(EMOJI_MAP).sort((a, b) => b.length - a.length);
+const PATTERN = new RegExp(
+  '\\b(' + SORTED_KEYS.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\b',
+  'gi'
+);
+function translate(text) {
+  if (!text) return { output: '', matchCount: 0 };
+  let matchCount = 0;
+  const output = text.replace(PATTERN, (match) => {
+    matchCount++;
+    const emoji = EMOJI_MAP[match.toLowerCase()];
+    return `${match} ${emoji}`;
+  });
+  return { output, matchCount };
+}
 export default function TextEmojiTranslator() {
   const [input, setInput] = useState('');
   const [copied, setCopied] = useState(false);
-  const [output, setOutput] = useState('');
-  const [matchCount, setMatchCount] = useState(0);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/text-emoji-translator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else {
-            setOutput(data.output);
-            setMatchCount(data.matchCount);
-          }
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input]);
+  const { output, matchCount } = useMemo(() => translate(input), [input]);
   async function handleCopy() {
     if (!output) return;
     try {
@@ -44,7 +103,6 @@ export default function TextEmojiTranslator() {
         😊", "love" -&gt; "love ❤️"). Uses a curated lookup table of everyday words and phrases - fun,
         not exhaustive. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}

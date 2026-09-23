@@ -1,4 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+function computeTotal(base, bonusPct, benefits, raisePct) {
+  const baseNum = Number(base) || 0;
+  const bonusNum = (Number(bonusPct) || 0) / 100;
+  const benefitsNum = Number(benefits) || 0;
+  const raiseNum = (Number(raisePct) || 0) / 100;
+  const newBase = baseNum * (1 + raiseNum);
+  const bonusAmount = newBase * bonusNum;
+  return {
+    newBase,
+    bonusAmount,
+    total: newBase + bonusAmount + benefitsNum
+  };
+}
 function OfferPanel({ label, offer, onChange }) {
   return (
     <div className="tool-panel">
@@ -30,31 +43,10 @@ export default function SalaryCalculator() {
   const [raisePct, setRaisePct] = useState('5');
   const [offerA, setOfferA] = useState({ base: '90000', bonusPct: '10', benefits: '10000', equity: '5000' });
   const [offerB, setOfferB] = useState({ base: '85000', bonusPct: '15', benefits: '12000', equity: '10000' });
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/salary-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { base, bonusPct, benefits, raisePct, offerA, offerB } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [base, bonusPct, benefits, raisePct, offerA, offerB]);
-  const raiseResult = result?.raiseResult ?? { newBase: 0, bonusAmount: 0, total: 0 };
-  const currentResult = result?.currentResult ?? { total: 0 };
-  const totalA = result?.totalA ?? 0;
-  const totalB = result?.totalB ?? 0;
+  const raiseResult = computeTotal(base, bonusPct, benefits, raisePct);
+  const currentResult = computeTotal(base, bonusPct, benefits, 0);
+  const totalA = (Number(offerA.base) || 0) * (1 + (Number(offerA.bonusPct) || 0) / 100) + (Number(offerA.benefits) || 0) + (Number(offerA.equity) || 0);
+  const totalB = (Number(offerB.base) || 0) * (1 + (Number(offerB.bonusPct) || 0) / 100) + (Number(offerB.benefits) || 0) + (Number(offerB.equity) || 0);
   return (
     <div className="tool-page">
       <h1>Salary &amp; Compensation Calculator</h1>
@@ -63,7 +55,6 @@ export default function SalaryCalculator() {
         percentage) or compare two job offers side by side, including base, bonus, benefits, and
         an equity estimate. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Mode:

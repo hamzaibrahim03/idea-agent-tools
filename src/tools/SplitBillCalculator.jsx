@@ -1,13 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function SplitBillCalculator() {
   const [total, setTotal] = useState('100');
   const [people, setPeople] = useState([
     { name: 'Person 1', share: '1' },
     { name: 'Person 2', share: '1' }
   ]);
-  const [valid, setValid] = useState(false);
-  const [amounts, setAmounts] = useState([]);
-  const [error, setError] = useState('');
   function updatePerson(index, field, value) {
     setPeople((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
   }
@@ -17,28 +14,11 @@ export default function SplitBillCalculator() {
   function removePerson(index) {
     setPeople((prev) => prev.filter((_, i) => i !== index));
   }
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/split-bill-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { total, people } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else {
-            setValid(data.valid);
-            setAmounts(data.amounts);
-          }
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [total, people]);
+  const totalNum = Number(total);
+  const shares = people.map((p) => Number(p.share) || 0);
+  const totalShares = shares.reduce((sum, s) => sum + s, 0);
+  const valid = Number.isFinite(totalNum) && totalNum >= 0 && totalShares > 0;
+  const amounts = valid ? shares.map((s) => (totalNum * s) / totalShares) : [];
   return (
     <div className="tool-page">
       <h1>Split Bill Calculator</h1>
@@ -46,7 +26,6 @@ export default function SplitBillCalculator() {
         Split a bill between any number of people, either evenly or by custom shares (e.g. someone
         ordered more, so they get 2 shares vs. everyone else's 1). Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Total bill:
@@ -81,7 +60,7 @@ export default function SplitBillCalculator() {
                 style={{ width: '60px', marginLeft: 4 }}
               />
             </label>
-            <code>{valid && amounts[i] !== undefined ? amounts[i].toFixed(2) : '—'}</code>
+            <code>{valid ? amounts[i].toFixed(2) : '—'}</code>
             <button type="button" className="uuid-copy-btn" onClick={() => removePerson(i)} disabled={people.length <= 1}>
               Remove
             </button>

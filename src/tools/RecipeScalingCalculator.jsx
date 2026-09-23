@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function RecipeScalingCalculator() {
   const [ingredients, setIngredients] = useState([
     { id: 1, name: 'Flour (cups)', quantity: '2' },
@@ -7,8 +7,6 @@ export default function RecipeScalingCalculator() {
   ]);
   const [originalServings, setOriginalServings] = useState('4');
   const [targetServings, setTargetServings] = useState('10');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
   function updateIngredient(id, field, value) {
     setIngredients((prev) => prev.map((i) => (i.id === id ? { ...i, [field]: value } : i)));
   }
@@ -18,28 +16,16 @@ export default function RecipeScalingCalculator() {
   function removeIngredient(id) {
     setIngredients((prev) => prev.filter((i) => i.id !== id));
   }
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/recipe-scaling-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { ingredients, originalServings, targetServings } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [ingredients, originalServings, targetServings]);
-  const rows = result?.rows ?? ingredients.map((i) => ({ ...i, scaled: null }));
-  const servingsValid = result?.servingsValid ?? false;
-  const scaleFactor = result?.scaleFactor ?? null;
+  const originalNum = Number(originalServings);
+  const targetNum = Number(targetServings);
+  const servingsValid = Number.isFinite(originalNum) && originalNum > 0 && Number.isFinite(targetNum) && targetNum > 0;
+  const scaleFactor = servingsValid ? targetNum / originalNum : null;
+  const rows = ingredients.map((i) => {
+    const qty = Number(i.quantity);
+    const valid = Number.isFinite(qty) && qty >= 0;
+    const scaled = valid && scaleFactor !== null ? qty * scaleFactor : null;
+    return { ...i, scaled };
+  });
   return (
     <div className="tool-page">
       <h1>Recipe Scaling Calculator</h1>
@@ -48,7 +34,6 @@ export default function RecipeScalingCalculator() {
         to get each ingredient's scaled quantity using simple ratio scaling. Runs entirely in your
         browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="rs-original">Original servings</label>
@@ -94,7 +79,7 @@ export default function RecipeScalingCalculator() {
                   <input type="number" min={0} step="0.01" value={r.quantity} onChange={(e) => updateIngredient(r.id, 'quantity', e.target.value)} style={{ width: '100px' }} />
                 </td>
                 <td>
-                  <code>{r.scaled !== null && r.scaled !== undefined ? Number(r.scaled.toFixed(3)) : '-'}</code>
+                  <code>{r.scaled !== null ? Number(r.scaled.toFixed(3)) : '-'}</code>
                 </td>
                 <td>
                   <button type="button" className="uuid-copy-btn" onClick={() => removeIngredient(r.id)}>

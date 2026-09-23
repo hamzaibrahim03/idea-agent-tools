@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function PlasterCalculator() {
   const [wallLength, setWallLength] = useState('20');
   const [wallHeight, setWallHeight] = useState('8');
@@ -6,32 +6,26 @@ export default function PlasterCalculator() {
   const [thicknessMm, setThicknessMm] = useState('12');
   const [coverageSqFtPerBag, setCoverageSqFtPerBag] = useState('40');
   const [waste, setWaste] = useState('10');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/plaster-calculator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { wallLength, wallHeight, openingsArea, thicknessMm, coverageSqFtPerBag, waste } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [wallLength, wallHeight, openingsArea, thicknessMm, coverageSqFtPerBag, waste]);
-  const valid = result?.valid ?? false;
-  const netArea = result?.netArea ?? 0;
-  const volumeCuFt = result?.volumeCuFt ?? 0;
-  const volumeCuM = result?.volumeCuM ?? 0;
-  const bagsNeeded = result?.bagsNeeded ?? null;
+  const lengthNum = Number(wallLength);
+  const heightNum = Number(wallHeight);
+  const openingsNum = Number(openingsArea);
+  const thicknessNum = Number(thicknessMm);
+  const coverageNum = Number(coverageSqFtPerBag);
+  const wasteNum = Number(waste);
+  const valid =
+    Number.isFinite(lengthNum) && lengthNum > 0 &&
+    Number.isFinite(heightNum) && heightNum > 0 &&
+    Number.isFinite(openingsNum) && openingsNum >= 0 &&
+    Number.isFinite(thicknessNum) && thicknessNum > 0 &&
+    Number.isFinite(coverageNum) && coverageNum > 0 &&
+    Number.isFinite(wasteNum) && wasteNum >= 0;
+  const grossArea = valid ? lengthNum * heightNum : 0;
+  const netArea = valid ? Math.max(0, grossArea - openingsNum) : 0;
+  const netAreaSqM = netArea * 0.092903;
+  const volumeCuM = netAreaSqM * (thicknessNum / 1000);
+  const volumeCuFt = volumeCuM / 0.0283168;
+  const areaWithWaste = netArea * (1 + wasteNum / 100);
+  const bagsNeeded = valid && netArea > 0 ? Math.ceil(areaWithWaste / coverageNum) : null;
   return (
     <div className="tool-page">
       <h1>Plaster / Render Calculator</h1>
@@ -67,18 +61,17 @@ export default function PlasterCalculator() {
           <input id="plaster-waste" type="number" min={0} value={waste} onChange={(e) => setWaste(e.target.value)} />
         </div>
       </div>
-      {error && <div className="agent-error">{error}</div>}
-      {!error && !valid && (
+      {!valid && (
         <div className="tool-error">
           <strong>Error:</strong> Enter positive dimensions, thickness, and coverage, and a non-negative waste percentage.
         </div>
       )}
-      {!error && valid && netArea <= 0 && (
+      {valid && netArea <= 0 && (
         <div className="tool-error">
           <strong>Error:</strong> Net area after subtracting openings must be greater than zero.
         </div>
       )}
-      {!error && bagsNeeded !== null && (
+      {bagsNeeded !== null && (
         <div className="timestamp-result">
           <div>
             <strong>Net area to cover:</strong> {netArea.toFixed(2)} sq ft

@@ -1,32 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+function lcsLength(a, b) {
+  const m = a.length, n = b.length;
+  let prev = new Array(n + 1).fill(0);
+  let curr = new Array(n + 1).fill(0);
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      curr[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : Math.max(prev[j], curr[j - 1]);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+function similarity(a, b) {
+  if (a.length === 0 && b.length === 0) return 100;
+  const lcs = lcsLength(a, b);
+  return (2 * lcs / (a.length + b.length)) * 100;
+}
 export default function TextDiffPercentage() {
   const [left, setLeft] = useState('');
   const [right, setRight] = useState('');
-  const [percent, setPercent] = useState(0);
-  const [hasInput, setHasInput] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/text-diff-percentage', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { left, right } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else {
-            setPercent(data.percent);
-            setHasInput(data.hasInput);
-          }
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [left, right]);
+  const percent = useMemo(() => similarity(left, right), [left, right]);
+  const hasInput = left.length > 0 || right.length > 0;
   return (
     <div className="tool-page">
       <h1>Text Diff Percentage</h1>
@@ -34,7 +28,6 @@ export default function TextDiffPercentage() {
         Compare two blocks of text and get an overall similarity percentage, based on the longest
         common subsequence of characters between them. Runs entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="tdp-left">Text A</label>

@@ -1,36 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 export default function ShippingCostEstimator() {
   const [distance, setDistance] = useState('250');
   const [weight, setWeight] = useState('500');
   const [baseRate, setBaseRate] = useState('50');
   const [perMile, setPerMile] = useState('1.25');
   const [perLb, setPerLb] = useState('0.05');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/freight-shipping-cost-estimator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { distance, weight, baseRate, perMile, perLb } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setResult(data);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [distance, weight, baseRate, perMile, perLb]);
-  const valid = result?.valid ?? false;
-  const baseNum = result?.baseNum ?? 0;
-  const distanceCost = result?.distanceCost ?? 0;
-  const weightCost = result?.weightCost ?? 0;
-  const totalCost = result?.totalCost ?? 0;
+  const distanceNum = Number(distance);
+  const weightNum = Number(weight);
+  const baseNum = Number(baseRate);
+  const perMileNum = Number(perMile);
+  const perLbNum = Number(perLb);
+  const valid = [distanceNum, weightNum, baseNum, perMileNum, perLbNum].every((n) => Number.isFinite(n) && n >= 0);
+  const distanceCost = valid ? distanceNum * perMileNum : null;
+  const weightCost = valid ? weightNum * perLbNum : null;
+  const totalCost = valid ? baseNum + distanceCost + weightCost : null;
   return (
     <div className="tool-page">
       <h1>Freight Shipping Cost Estimator</h1>
@@ -40,7 +23,6 @@ export default function ShippingCostEstimator() {
         carrier's or quote's rates, since this site has no live freight rate data. Runs entirely in
         your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="sce-distance">Distance (miles)</label>

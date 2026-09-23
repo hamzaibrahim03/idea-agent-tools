@@ -1,31 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+function truncateByChars(text, limit, suffix) {
+  if (text.length <= limit) return text;
+  const cut = Math.max(0, limit - suffix.length);
+  return text.slice(0, cut).trimEnd() + suffix;
+}
+function truncateByWords(text, limit, suffix) {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length <= limit) return text;
+  return words.slice(0, limit).join(' ') + suffix;
+}
 export default function TextTruncator() {
   const [input, setInput] = useState('');
   const [mode, setMode] = useState('chars');
   const [limit, setLimit] = useState(150);
   const [suffix, setSuffix] = useState('…');
   const [copied, setCopied] = useState(false);
-  const [output, setOutput] = useState('');
-  const [error, setError] = useState('');
   const safeLimit = Math.max(1, Number(limit) || 1);
-  useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/text-truncator', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input, mode, limit: safeLimit, suffix } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setOutput(data.output);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
+  const output = useMemo(() => {
+    if (!input) return '';
+    return mode === 'words'
+      ? truncateByWords(input, safeLimit, suffix)
+      : truncateByChars(input, safeLimit, suffix);
   }, [input, mode, safeLimit, suffix]);
   const wasTruncated = output !== input;
   async function handleCopy() {
@@ -45,7 +40,6 @@ export default function TextTruncator() {
         ellipsis suffix - handy for meta descriptions, tweet previews, and card summaries. Runs
         entirely in your browser.
       </p>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-controls">
         <label>
           Limit by:

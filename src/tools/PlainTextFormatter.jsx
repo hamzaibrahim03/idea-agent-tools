@@ -1,33 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+function cleanText(text) {
+  const paragraphs = text
+    .replace(/\r\n/g, '\n')
+    .split(/\n\s*\n/)
+    .map((para) =>
+      para
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .join(' ')
+        .replace(/[ \t]+/g, ' ')
+        .trim()
+    )
+    .filter((para) => para.length > 0);
+  return paragraphs.join('\n\n');
+}
 export default function PlainTextFormatter() {
   const [input, setInput] = useState('');
-  const [output, setOutput] = useState('');
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let cancelled = false;
-    if (!input) {
-      setOutput('');
-      setError('');
-      return undefined;
-    }
-    const timer = setTimeout(() => {
-      setError('');
-      fetch('/api/tools/plain-text-formatter', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ input: { input } })
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled) return;
-          if (data.error) setError(data.error);
-          else setOutput(data.output);
-        })
-        .catch((e) => { if (!cancelled) setError(e.message || 'Failed to compute'); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [input]);
+  const output = input ? cleanText(input) : '';
   async function handleCopy() {
     if (!output) return;
     try {
@@ -50,7 +41,6 @@ export default function PlainTextFormatter() {
         <button onClick={handleCopy} disabled={!output}>{copied ? 'Copied!' : 'Copy cleaned text'}</button>
         <button onClick={() => setInput('')} disabled={!input}>Clear</button>
       </div>
-      {error && <div className="agent-error">{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="ptf-input">Input (messy text)</label>
