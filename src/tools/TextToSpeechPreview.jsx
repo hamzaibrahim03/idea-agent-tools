@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const SUPPORTED = typeof window !== 'undefined' && 'speechSynthesis' in window;
 export default function TextToSpeechPreview() {
   const [text, setText] = useState('Type something and press Speak to hear it read aloud.');
@@ -38,6 +39,9 @@ export default function TextToSpeechPreview() {
     if (!SUPPORTED) return;
     window.speechSynthesis.cancel();
     setSpeaking(false);
+  }
+  function handleDownload() {
+    downloadFile(text, 'speech-text.txt', 'text/plain');
   }
   return (
     <div className="tool-page">
@@ -94,6 +98,9 @@ export default function TextToSpeechPreview() {
         </button>
         <button onClick={handleStop} disabled={!SUPPORTED || !speaking}>
           Stop
+        </button>
+        <button onClick={handleDownload} disabled={!text}>
+          Download text
         </button>
       </div>
       <div className="tool-panel">
