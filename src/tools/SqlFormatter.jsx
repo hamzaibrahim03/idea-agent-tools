@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const CLAUSE_KEYWORDS = [
   'SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'OFFSET',
   'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN', 'FULL JOIN', 'JOIN',
@@ -46,6 +47,9 @@ export default function SqlFormatter() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(formatted, 'formatted.sql', 'application/sql');
+  }
   return (
     <div className="tool-page">
       <h1>SQL Formatter</h1>
@@ -58,6 +62,9 @@ export default function SqlFormatter() {
       <div className="tool-controls">
         <button onClick={handleCopy} disabled={!formatted}>
           {copied ? 'Copied!' : 'Copy formatted SQL'}
+        </button>
+        <button onClick={handleDownload} disabled={!formatted}>
+          Download
         </button>
         <button onClick={() => setInput('')} disabled={!input}>
           Clear

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function buildCss({ columns, rows, gap }) {
     return [
         '.container {',
@@ -24,6 +25,9 @@ export default function CssGridGenerator() {
         } catch {
         }
     }
+    function handleDownload() {
+        downloadFile(css, 'grid.css', 'text/css');
+    }
     return (
         <div className="tool-page">
             <h1>CSS Grid Generator</h1>
@@ -45,6 +49,7 @@ export default function CssGridGenerator() {
                     <input type="range" min={0} max={48} value={gap} onChange={(e) => setGap(Number(e.target.value))} />
                 </label>
                 <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy CSS'}</button>
+                <button onClick={handleDownload}>Download</button>
             </div>
             <div className="tool-panel">
                 <label>Preview</label>

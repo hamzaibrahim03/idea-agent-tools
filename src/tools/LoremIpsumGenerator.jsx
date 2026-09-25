@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const WORDS = (
   'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut ' +
   'labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco laboris ' +
@@ -45,6 +46,9 @@ export default function LoremIpsumGenerator() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'lorem-ipsum.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Lorem Ipsum Generator</h1>
@@ -71,6 +75,9 @@ export default function LoremIpsumGenerator() {
         <button onClick={handleGenerate}>Generate</button>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-panel">

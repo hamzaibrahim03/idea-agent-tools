@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 import { useAiGenerate } from '../lib/useAiGenerate.js';
 import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function PropertyDescriptionTemplateGenerator() {
@@ -22,6 +23,9 @@ export default function PropertyDescriptionTemplateGenerator() {
       setTimeout(() => setCopied(false), 1500);
     } catch {
     }
+  }
+  function handleDownload() {
+    downloadFile(description, 'property-description.txt', 'text/plain');
   }
   return (
     <div className="tool-page">
@@ -76,6 +80,9 @@ export default function PropertyDescriptionTemplateGenerator() {
         </button>
         <button type="button" onClick={handleCopy} disabled={!description}>
           {copied ? 'Copied!' : 'Copy description'}
+        </button>
+        <button type="button" onClick={handleDownload} disabled={!description}>
+          Download
         </button>
         <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
           {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}

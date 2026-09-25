@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function parseCsvLine(line) {
   const fields = [];
   let current = '';
@@ -80,6 +81,13 @@ export default function CsvJsonConverter() {
     } catch {
     }
   }
+  function handleDownload() {
+    if (mode === 'csv-to-json') {
+      downloadFile(output, 'converted.json', 'application/json');
+    } else {
+      downloadFile(output, 'converted.csv', 'text/csv');
+    }
+  }
   function handleSwap() {
     setMode((m) => (m === 'csv-to-json' ? 'json-to-csv' : 'csv-to-json'));
     setInput(output || input);
@@ -104,6 +112,9 @@ export default function CsvJsonConverter() {
         </button>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

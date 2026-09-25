@@ -1,5 +1,6 @@
 import { useState } from 'react';
-const SUBJECTS = ['the team', 'a curious cat', 'our neighbor', 'the old machine', 'a bright student', 'the committee', 'my brother', 'the river', 'a quiet town', 'the scientist'];
+import { downloadFile } from '../lib/downloadFile.js';
+const SUBJECTS =['the team', 'a curious cat', 'our neighbor', 'the old machine', 'a bright student', 'the committee', 'my brother', 'the river', 'a quiet town', 'the scientist'];
 const VERBS = ['discovered', 'organized', 'questioned', 'rebuilt', 'welcomed', 'measured', 'ignored', 'celebrated', 'documented', 'transformed'];
 const OBJECTS = ['the missing report', 'a forgotten garden', 'several new ideas', 'the plan for tomorrow', 'an unexpected visitor', 'the old bridge', 'a stack of letters', 'the annual budget', 'a strange melody', 'the town square'];
 const CONNECTORS = ['Meanwhile', 'As a result', 'Even so', 'Later that day', 'Without warning', 'In the end', 'Nevertheless', 'Soon after'];
@@ -40,6 +41,9 @@ export default function RandomParagraphGenerator() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'random-paragraphs.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Random Paragraph Generator</h1>
@@ -63,6 +67,9 @@ export default function RandomParagraphGenerator() {
         <button onClick={handleGenerate}>Generate</button>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-panel">

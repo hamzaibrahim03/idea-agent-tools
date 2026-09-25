@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function tokenizePath(path) {
   const trimmed = path.trim();
   if (!trimmed.startsWith('$')) {
@@ -79,6 +80,9 @@ export default function JsonPathTester() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(outputText, 'jsonpath-matches.json', 'application/json');
+  }
   return (
     <div className="tool-page">
       <h1>JSONPath Tester</h1>
@@ -119,6 +123,9 @@ export default function JsonPathTester() {
       <div className="tool-controls">
         <button onClick={handleCopy} disabled={!outputText}>
           {copied ? 'Copied!' : 'Copy matches'}
+        </button>
+        <button onClick={handleDownload} disabled={!outputText}>
+          Download
         </button>
       </div>
       {result.error && (

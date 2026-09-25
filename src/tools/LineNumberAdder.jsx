@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function addLineNumbers(text, start, padWidth, separator) {
   if (!text) return '';
   const lines = text.split('\n');
@@ -26,6 +27,9 @@ export default function LineNumberAdder() {
       setTimeout(() => setCopied(false), 1500);
     } catch {
     }
+  }
+  function handleDownload() {
+    downloadFile(output, 'numbered-lines.txt', 'text/plain');
   }
   return (
     <div className="tool-page">
@@ -68,6 +72,9 @@ export default function LineNumberAdder() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

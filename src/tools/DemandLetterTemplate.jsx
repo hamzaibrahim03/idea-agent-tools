@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 import { useAiGenerate } from '../lib/useAiGenerate.js';
 import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function DemandLetterTemplate() {
@@ -20,6 +21,9 @@ export default function DemandLetterTemplate() {
             setTimeout(() => setCopied(false), 1500);
         } catch {
         }
+    }
+    function handleDownload() {
+        downloadFile(letter, 'demand-letter.txt', 'text/plain');
     }
     return (
         <div className="tool-page">
@@ -62,6 +66,9 @@ export default function DemandLetterTemplate() {
                 </button>
                 <button type="button" onClick={handleCopy} disabled={!letter}>
                     {copied ? 'Copied!' : 'Copy letter'}
+                </button>
+                <button type="button" onClick={handleDownload} disabled={!letter}>
+                    Download
                 </button>
                 <button type="button" onClick={() => window.print()} disabled={!letter}>
                     Print

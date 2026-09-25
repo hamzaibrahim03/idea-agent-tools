@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function textToBinary(text) {
   const bytes = new TextEncoder().encode(text);
   return Array.from(bytes, (b) => b.toString(2).padStart(8, '0')).join(' ');
@@ -50,6 +51,10 @@ export default function BinaryAsciiConverter() {
     } catch {
     }
   }
+  function handleDownload() {
+    const filename = direction === 'toCode' ? `text-to-${mode.toLowerCase()}.txt` : `${mode.toLowerCase()}-to-text.txt`;
+    downloadFile(output, filename, 'text/plain');
+  }
   const inputLabel = direction === 'toCode' ? 'Text' : mode === 'Binary' ? 'Binary' : 'Hex';
   const outputLabel = direction === 'toCode' ? (mode === 'Binary' ? 'Binary' : 'Hex') : 'Text';
   return (
@@ -76,6 +81,9 @@ export default function BinaryAsciiConverter() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

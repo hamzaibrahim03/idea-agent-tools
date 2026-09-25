@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function expandLeadingTabs(line, tabWidth) {
   let result = '';
   let column = 0;
@@ -47,6 +48,9 @@ export default function IndentationConverter() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'converted-indentation.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Indentation Converter</h1>
@@ -75,6 +79,9 @@ export default function IndentationConverter() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

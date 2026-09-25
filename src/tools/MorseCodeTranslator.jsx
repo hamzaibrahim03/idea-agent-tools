@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const MORSE_TABLE = {
   A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.', H: '....',
   I: '..', J: '.---', K: '-.-', L: '.-..', M: '--', N: '-.', O: '---', P: '.--.',
@@ -56,6 +57,9 @@ export default function MorseCodeTranslator() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'morse-code.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Morse Code Translator</h1>
@@ -67,6 +71,9 @@ export default function MorseCodeTranslator() {
       <div className="tool-controls">
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const AP_MAX_MINOR_LENGTH = 3;
 const AP_ALWAYS_CAPITALIZE = new Set(['is', 'are', 'be', 'if']);
 const CHICAGO_MINOR_WORDS = new Set([
@@ -54,6 +55,9 @@ export default function TitleCaseConverter() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'title-case.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Title Case Converter</h1>
@@ -74,6 +78,9 @@ export default function TitleCaseConverter() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 function encodeBase32(bytes) {
   let bits = '';
@@ -58,6 +59,9 @@ export default function Base32Encoder() {
     setMode((m) => (m === 'encode' ? 'decode' : 'encode'));
     setInput(output);
   }
+  function handleDownload() {
+    downloadFile(output, `base32-${mode}.txt`, 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Base32 Encoder / Decoder</h1>
@@ -79,6 +83,9 @@ export default function Base32Encoder() {
         </button>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy result'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

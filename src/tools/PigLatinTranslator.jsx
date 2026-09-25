@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
+import { downloadFile } from '../lib/downloadFile.js';
+const VOWELS =new Set(['a', 'e', 'i', 'o', 'u']);
 function translateWord(word) {
   const leading = word.match(/^[a-zA-Z]+/);
   if (!leading) return word;
@@ -46,6 +47,9 @@ export default function PigLatinTranslator() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'pig-latin.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Pig Latin Translator</h1>
@@ -57,6 +61,9 @@ export default function PigLatinTranslator() {
       <div className="tool-controls">
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

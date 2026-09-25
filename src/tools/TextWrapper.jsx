@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function wrapText(text, width) {
   if (width < 1) return text;
   return text
@@ -50,6 +51,9 @@ export default function TextWrapper() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'wrapped.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Text Wrapper</h1>
@@ -70,6 +74,9 @@ export default function TextWrapper() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

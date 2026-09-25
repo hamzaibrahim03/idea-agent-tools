@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const PBKDF2_ITERATIONS = 100000;
@@ -68,6 +69,9 @@ export default function TextEncryption() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, mode === 'encrypt' ? 'encrypted.txt' : 'decrypted.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Text Encryption (AES-256)</h1>
@@ -108,6 +112,7 @@ export default function TextEncryption() {
           </label>
           <div className="tool-controls">
             <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy'}</button>
+            <button onClick={handleDownload}>Download</button>
           </div>
           <textarea id="encrypt-output" value={output} readOnly spellCheck={false} />
         </div>

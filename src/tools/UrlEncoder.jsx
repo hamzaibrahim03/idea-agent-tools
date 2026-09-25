@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 export default function UrlEncoder() {
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
@@ -22,6 +23,9 @@ export default function UrlEncoder() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'url-encoded.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>URL Encoder / Decoder</h1>
@@ -35,6 +39,9 @@ export default function UrlEncoder() {
         </button>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy encoded'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
         <button onClick={() => setInput('')} disabled={!input}>
           Clear

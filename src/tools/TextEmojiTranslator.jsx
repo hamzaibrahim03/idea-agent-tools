@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const EMOJI_MAP = {
   'ice cream': '🍦',
   'thank you': '🙏',
@@ -95,6 +96,9 @@ export default function TextEmojiTranslator() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'emoji-translated.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Text Emoji Translator</h1>
@@ -106,6 +110,9 @@ export default function TextEmojiTranslator() {
       <div className="tool-controls">
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

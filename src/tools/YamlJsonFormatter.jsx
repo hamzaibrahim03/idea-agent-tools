@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function parseYamlValue(raw) {
   const v = raw.trim();
   if (v === '') return '';
@@ -137,6 +138,13 @@ export default function YamlJsonFormatter() {
     } catch {
     }
   }
+  function handleDownload() {
+    if (mode === 'yaml-to-json') {
+      downloadFile(output, 'converted.json', 'application/json');
+    } else {
+      downloadFile(output, 'converted.yaml', 'application/yaml');
+    }
+  }
   return (
     <div className="tool-page">
       <h1>YAML ⇄ JSON Converter</h1>
@@ -154,6 +162,9 @@ export default function YamlJsonFormatter() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

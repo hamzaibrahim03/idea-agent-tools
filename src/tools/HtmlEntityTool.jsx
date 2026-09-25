@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function encodeEntities(text) {
   return text.replace(/[&<>"']/g, (c) => ({
     '&': '&amp;',
@@ -27,6 +28,9 @@ export default function HtmlEntityTool() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'html-entities.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>HTML Entity Encoder / Decoder</h1>
@@ -44,6 +48,9 @@ export default function HtmlEntityTool() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

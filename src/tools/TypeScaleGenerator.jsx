@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const RATIOS = [
   { value: 1.067, label: 'Minor Second (1.067)' },
   { value: 1.125, label: 'Major Second (1.125)' },
@@ -38,6 +39,9 @@ export default function TypeScaleGenerator() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(cssOutput, 'type-scale.css', 'text/css');
+  }
   return (
     <div className="tool-page">
       <h1>Type Scale Generator</h1>
@@ -60,6 +64,7 @@ export default function TypeScaleGenerator() {
           </select>
         </label>
         <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy CSS variables'}</button>
+        <button onClick={handleDownload}>Download</button>
       </div>
       <div className="tool-panel">
         <label>Type scale preview</label>

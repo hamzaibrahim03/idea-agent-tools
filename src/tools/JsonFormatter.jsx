@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 export default function JsonFormatter() {
   const [input, setInput] = useState('');
   const [indent, setIndent] = useState(2);
@@ -29,6 +30,9 @@ export default function JsonFormatter() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(formatted, 'formatted.json', 'application/json');
+  }
   return (
     <div className="tool-page">
       <h1>JSON Formatter &amp; Validator</h1>
@@ -50,6 +54,9 @@ export default function JsonFormatter() {
         </button>
         <button onClick={handleCopy} disabled={!formatted}>
           {copied ? 'Copied!' : 'Copy formatted'}
+        </button>
+        <button onClick={handleDownload} disabled={!formatted}>
+          Download
         </button>
         <button onClick={() => setInput('')} disabled={!input}>
           Clear

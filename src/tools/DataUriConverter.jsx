@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function readFileAsDataUri(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -43,6 +44,9 @@ export default function DataUriConverter() {
         } catch {
         }
     }
+    function handleDownload() {
+        downloadFile(dataUri, `${fileName || 'file'}.datauri.txt`, 'text/plain');
+    }
     const decoded = (() => {
         if (!decodeInput.trim()) return null;
         try {
@@ -80,6 +84,7 @@ export default function DataUriConverter() {
                     <textarea id="datauri-output" value={dataUri} readOnly spellCheck={false} />
                     <div className="tool-controls">
                         <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy data URI'}</button>
+                        <button onClick={handleDownload}>Download</button>
                     </div>
                     {dataUri.startsWith('data:image/') && (
                         <img

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const DEFAULTS = [
   { key: 'mobile', label: 'Mobile', value: 640 },
   { key: 'tablet', label: 'Tablet', value: 768 },
@@ -27,6 +28,9 @@ export default function ResponsiveBreakpointGenerator() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(cssOutput, 'breakpoints.css', 'text/css');
+  }
   return (
     <div className="tool-page">
       <h1>Responsive Breakpoint Generator</h1>
@@ -38,6 +42,7 @@ export default function ResponsiveBreakpointGenerator() {
       <div className="tool-controls">
         <button onClick={resetDefaults}>Reset to defaults</button>
         <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy CSS'}</button>
+        <button onClick={handleDownload}>Download</button>
       </div>
       <div className="tool-panel">
         <label>Breakpoints</label>

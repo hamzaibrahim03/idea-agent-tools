@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const LINEAR_MULTIPLES = [0.5, 1, 2, 3, 4, 6, 8, 12, 16];
 const GEOMETRIC_STEPS = 8;
 function buildLinearScale(base) {
@@ -30,6 +31,9 @@ export default function DesignSpacingScaleGenerator() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(cssOutput, 'spacing-scale.css', 'text/css');
+  }
   return (
     <div className="tool-page">
       <h1>Design Spacing Scale Generator</h1>
@@ -57,6 +61,7 @@ export default function DesignSpacingScaleGenerator() {
           </label>
         )}
         <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy CSS variables'}</button>
+        <button onClick={handleDownload}>Download</button>
       </div>
       <div className="tool-panel">
         <label>Spacing scale</label>

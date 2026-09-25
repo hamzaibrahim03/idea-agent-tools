@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function shiftChar(char, shift) {
   const code = char.charCodeAt(0);
   if (code >= 65 && code <= 90) {
@@ -28,6 +29,9 @@ export default function CaesarCipher() {
       setTimeout(() => setCopied(false), 1500);
     } catch {
     }
+  }
+  function handleDownload() {
+    downloadFile(output, `caesar-${mode}.txt`, 'text/plain');
   }
   return (
     <div className="tool-page">
@@ -72,6 +76,11 @@ export default function CaesarCipher() {
         {!bruteForce && (
           <button onClick={handleCopy} disabled={!output}>
             {copied ? 'Copied!' : 'Copy output'}
+          </button>
+        )}
+        {!bruteForce && (
+          <button onClick={handleDownload} disabled={!output}>
+            Download
           </button>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function toRoman(num) {
   const table = [
     [1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'],
@@ -67,6 +68,9 @@ export default function BulletPointFormatter() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'bullet-points.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Bullet Point Formatter</h1>
@@ -85,6 +89,9 @@ export default function BulletPointFormatter() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

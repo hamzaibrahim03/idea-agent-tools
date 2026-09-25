@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function columnize(items, columnCount) {
   if (items.length === 0) return '';
   const rows = Math.ceil(items.length / columnCount);
@@ -35,6 +36,9 @@ export default function TextColumnizer() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'columnized.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Text Columnizer</h1>
@@ -58,6 +62,9 @@ export default function TextColumnizer() {
         <span className="tool-placeholder">{items.length} item{items.length === 1 ? '' : 's'}</span>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

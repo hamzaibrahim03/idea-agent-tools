@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function reverseChars(text) {
   return [...text].reverse().join('');
 }
@@ -27,6 +28,9 @@ export default function TextReverser() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'reversed.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Text Reverser</h1>
@@ -46,6 +50,9 @@ export default function TextReverser() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

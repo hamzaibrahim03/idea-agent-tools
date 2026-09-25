@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function buildBorderRadius(corners) {
     const { tl, tr, br, bl } = corners;
     const allEqualAxes = [tl, tr, br, bl].every((c) => c.h === c.v);
@@ -47,6 +48,9 @@ export default function CssBorderRadiusGenerator() {
         } catch {
         }
     }
+    function handleDownload() {
+        downloadFile(css, 'border-radius.css', 'text/css');
+    }
     return (
         <div className="tool-page">
             <h1>CSS Border Radius Generator</h1>
@@ -62,6 +66,7 @@ export default function CssBorderRadiusGenerator() {
                     Link all corners
                 </label>
                 <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy CSS'}</button>
+                <button onClick={handleDownload}>Download</button>
             </div>
             {linked ? (
                 <div className="tool-controls">

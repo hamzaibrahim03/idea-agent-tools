@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 let nextId = 1;
 function makeId() {
   return nextId++;
@@ -80,6 +81,9 @@ export default function RobotsTxtGenerator() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'robots.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Robots.txt Generator</h1>
@@ -94,6 +98,9 @@ export default function RobotsTxtGenerator() {
         <button onClick={addBlock}>Add rule block</button>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy robots.txt'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       {blocks.map((block) => (

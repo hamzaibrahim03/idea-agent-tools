@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function parseXml(xml) {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
   const parseError = doc.querySelector('parsererror');
@@ -75,6 +76,9 @@ export default function XmlFormatter() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'formatted.xml', 'application/xml');
+  }
   return (
     <div className="tool-page">
       <h1>XML Formatter</h1>
@@ -93,6 +97,9 @@ export default function XmlFormatter() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy result'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

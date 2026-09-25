@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function buildBoxShadow({ offsetX, offsetY, blur, spread, color, inset }) {
     const parts = [`${offsetX}px`, `${offsetY}px`, `${blur}px`, `${spread}px`, color];
     if (inset) parts.push('inset');
@@ -21,6 +22,9 @@ export default function CssBoxShadowGenerator() {
             setTimeout(() => setCopied(false), 1500);
         } catch {
         }
+    }
+    function handleDownload() {
+        downloadFile(css, 'box-shadow.css', 'text/css');
     }
     return (
         <div className="tool-page">
@@ -57,6 +61,7 @@ export default function CssBoxShadowGenerator() {
                     Inset
                 </label>
                 <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy CSS'}</button>
+                <button onClick={handleDownload}>Download</button>
             </div>
             <div className="tool-panel">
                 <label>Preview</label>

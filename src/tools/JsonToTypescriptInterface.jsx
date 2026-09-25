@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function toPascalCase(key) {
   const cleaned = key.replace(/[^a-zA-Z0-9]+/g, ' ').trim();
   return cleaned
@@ -76,6 +77,9 @@ export default function JsonToTypescriptInterface() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'interfaces.ts', 'text/typescript');
+  }
   return (
     <div className="tool-page">
       <h1>JSON to TypeScript Interface</h1>
@@ -91,6 +95,9 @@ export default function JsonToTypescriptInterface() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

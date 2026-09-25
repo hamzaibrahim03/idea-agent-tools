@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 import { useAiGenerate } from '../lib/useAiGenerate.js';
 import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 const POST_TYPES = {
@@ -26,6 +27,11 @@ export default function SocialMediaPostTemplateGenerator() {
       setTimeout(() => setCopied(''), 1500);
     } catch {
     }
+  }
+  function handleDownload(post, key) {
+    const text = post.hashtags?.length ? `${post.text}\n\n${post.hashtags.join(' ')}` : post.text;
+    const platformSlug = (post.platform || 'post').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    downloadFile(text, `social-post-${platformSlug || key + 1}.txt`, 'text/plain');
   }
   return (
     <div className="tool-page">
@@ -105,6 +111,9 @@ export default function SocialMediaPostTemplateGenerator() {
           <div className="tool-controls">
             <button type="button" onClick={() => handleCopy(post, i)}>
               {copied === i ? 'Copied!' : 'Copy post'}
+            </button>
+            <button type="button" onClick={() => handleDownload(post, i)}>
+              Download
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const DIRECTIONS = ['row', 'row-reverse', 'column', 'column-reverse'];
 const JUSTIFY = ['flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'space-evenly'];
 const ALIGN = ['stretch', 'flex-start', 'flex-end', 'center', 'baseline'];
@@ -30,6 +31,9 @@ export default function CssFlexboxPlayground() {
             setTimeout(() => setCopied(false), 1500);
         } catch {
         }
+    }
+    function handleDownload() {
+        downloadFile(css, 'flexbox.css', 'text/css');
     }
     return (
         <div className="tool-page">
@@ -76,6 +80,7 @@ export default function CssFlexboxPlayground() {
                     <input type="range" min={0} max={48} value={gap} onChange={(e) => setGap(Number(e.target.value))} />
                 </label>
                 <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy CSS'}</button>
+                <button onClick={handleDownload}>Download</button>
             </div>
             <div className="tool-panel">
                 <label>Preview</label>

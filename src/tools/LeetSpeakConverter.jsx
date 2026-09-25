@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const LIGHT_MAP = {
   a: '4', e: '3', i: '1', o: '0', s: '5', t: '7'
 };
@@ -32,6 +33,9 @@ export default function LeetSpeakConverter() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'leet-speak.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Leet Speak Converter</h1>
@@ -50,6 +54,9 @@ export default function LeetSpeakConverter() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

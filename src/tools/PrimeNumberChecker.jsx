@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const MAX_SIEVE = 1000000;
 function isPrime(n) {
   if (!Number.isInteger(n) || n < 2) return false;
@@ -46,6 +47,10 @@ export default function PrimeNumberChecker() {
       setTimeout(() => setCopied(false), 1500);
     } catch {
     }
+  }
+  function handleDownload() {
+    if (!sieveResult || sieveResult.error) return;
+    downloadFile(sieveResult.primes.join(', '), 'primes.txt', 'text/plain');
   }
   return (
     <div className="tool-page">
@@ -100,6 +105,9 @@ export default function PrimeNumberChecker() {
             </label>
             <button onClick={handleCopy} disabled={!sieveResult || sieveResult.error}>
               {copied ? 'Copied!' : 'Copy list'}
+            </button>
+            <button onClick={handleDownload} disabled={!sieveResult || sieveResult.error}>
+              Download
             </button>
           </div>
           {sieveResult?.error && <div className="tool-error">{sieveResult.error}</div>}

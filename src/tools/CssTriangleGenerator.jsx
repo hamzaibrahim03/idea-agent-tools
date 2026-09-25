@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function buildTriangleCss(direction, size, color) {
     const transparent = { top: 'transparent', right: 'transparent', bottom: 'transparent', left: 'transparent' };
     const borders = { ...transparent };
@@ -50,6 +51,9 @@ export default function CssTriangleGenerator() {
         } catch {
         }
     }
+    function handleDownload() {
+        downloadFile(css, 'triangle.css', 'text/css');
+    }
     const vertical = direction === 'up' || direction === 'down';
     return (
         <div className="tool-page">
@@ -77,6 +81,7 @@ export default function CssTriangleGenerator() {
                     <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
                 </label>
                 <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy CSS'}</button>
+                <button onClick={handleDownload}>Download</button>
             </div>
             <div className="tool-panel">
                 <label>Preview</label>

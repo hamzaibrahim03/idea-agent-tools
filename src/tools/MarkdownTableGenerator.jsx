@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const ALIGNMENTS = ['left', 'center', 'right'];
 function makeGrid(rows, cols, fill = '') {
   return Array.from({ length: rows }, (_, r) =>
@@ -63,6 +64,9 @@ export default function MarkdownTableGenerator() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(markdown, 'markdown-table.md', 'text/markdown');
+  }
   return (
     <div className="tool-page">
       <h1>Markdown Table Generator</h1>
@@ -76,6 +80,7 @@ export default function MarkdownTableGenerator() {
         <button onClick={addRow}>Add row</button>
         <button onClick={removeRow} disabled={rows.length <= 1}>Remove row</button>
         <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy Markdown'}</button>
+        <button onClick={handleDownload}>Download</button>
       </div>
       <div className="tool-panel">
         <label>Table builder</label>

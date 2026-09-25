@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const SCENARIOS = {
   refund: 'Refund request',
   shipping_delay: 'Shipping delay',
@@ -39,6 +40,9 @@ export default function CustomerSupportReplyTemplates() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'support-reply.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Customer Support Reply Templates</h1>
@@ -59,6 +63,7 @@ export default function CustomerSupportReplyTemplates() {
           </select>
         </label>
         <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy reply'}</button>
+        <button onClick={handleDownload}>Download</button>
       </div>
       <div className="tool-grid">
         <div className="tool-panel">

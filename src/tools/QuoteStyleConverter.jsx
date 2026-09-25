@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function convertQuotes(code, targetQuote) {
   const quoteChars = ['"', "'", '`'];
   let result = '';
@@ -53,6 +54,9 @@ export default function QuoteStyleConverter() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'converted-code.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Quote Style Converter</h1>
@@ -73,6 +77,9 @@ export default function QuoteStyleConverter() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 import { useAiGenerate } from '../lib/useAiGenerate.js';
 import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function NewsletterTemplateGenerator() {
@@ -45,6 +46,9 @@ export default function NewsletterTemplateGenerator() {
       setTimeout(() => setCopied(false), 1500);
     } catch {
     }
+  }
+  function handleDownload() {
+    downloadFile(output, 'newsletter.txt', 'text/plain');
   }
   return (
     <div className="tool-page">
@@ -103,6 +107,9 @@ export default function NewsletterTemplateGenerator() {
         </button>
         <button type="button" onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy newsletter'}
+        </button>
+        <button type="button" onClick={handleDownload} disabled={!output}>
+          Download
         </button>
         <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
           {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}

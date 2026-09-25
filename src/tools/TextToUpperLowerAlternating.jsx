@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function toAlternatingCase(text, startUpper) {
   let upperNext = startUpper;
   return [...text]
@@ -24,6 +25,9 @@ export default function TextToUpperLowerAlternating() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'alternating-case.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Alternating Case Converter</h1>
@@ -38,6 +42,9 @@ export default function TextToUpperLowerAlternating() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

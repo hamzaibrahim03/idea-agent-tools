@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function parseEnv(text) {
   const rows = [];
   const lines = text.split('\n');
@@ -46,6 +47,9 @@ export default function EnvFileParser() {
       setTimeout(() => setCopied(false), 1500);
     } catch {
     }
+  }
+  function handleDownload() {
+    downloadFile(generatedEnv, '.env', 'text/plain');
   }
   return (
     <div className="tool-page">
@@ -125,6 +129,9 @@ export default function EnvFileParser() {
           Generated .env
           <button onClick={handleCopy} disabled={!generatedEnv} style={{ marginLeft: '10px' }}>
             {copied ? 'Copied!' : 'Copy'}
+          </button>
+          <button onClick={handleDownload} disabled={!generatedEnv} style={{ marginLeft: '10px' }}>
+            Download
           </button>
         </label>
         <textarea id="env-output" value={generatedEnv} readOnly spellCheck={false} placeholder="Generated .env output will appear here" />

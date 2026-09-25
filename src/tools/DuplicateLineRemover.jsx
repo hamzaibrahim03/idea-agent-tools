@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function removeDuplicates(text, options) {
   const lines = text.split('\n');
   const seen = new Set();
@@ -35,6 +36,9 @@ export default function DuplicateLineRemover() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'deduplicated-lines.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Duplicate Line Remover</h1>
@@ -53,6 +57,9 @@ export default function DuplicateLineRemover() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

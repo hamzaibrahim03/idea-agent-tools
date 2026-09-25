@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const IDENTIFIER_KEY = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 function toJsObjectLiteral(value, indent = 0) {
   const pad = '  '.repeat(indent);
@@ -50,6 +51,13 @@ export default function JsonJsObjectConverter() {
     } catch {
     }
   }
+  function handleDownload() {
+    if (mode === 'json-to-js') {
+      downloadFile(output, 'object.js', 'text/javascript');
+    } else {
+      downloadFile(output, 'converted.json', 'application/json');
+    }
+  }
   return (
     <div className="tool-page">
       <h1>JSON ⇄ JS Object Literal Converter</h1>
@@ -68,6 +76,9 @@ export default function JsonJsObjectConverter() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

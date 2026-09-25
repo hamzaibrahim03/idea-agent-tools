@@ -1,5 +1,6 @@
 import { useState } from 'react';
-const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+import { downloadFile } from '../lib/downloadFile.js';
+const ONES =['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
     'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
 const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 const SCALES = ['', 'Thousand', 'Million', 'Billion', 'Trillion', 'Quadrillion', 'Zrillion'];
@@ -62,6 +63,9 @@ export default function MoneyToWordsConverter() {
         } catch {
         }
     }
+    function handleDownload() {
+        downloadFile(words, 'money-in-words.txt', 'text/plain');
+    }
     return (
         <div className="tool-page">
             <h1>Money to Words Converter</h1>
@@ -93,6 +97,9 @@ export default function MoneyToWordsConverter() {
                 </label>
                 <button onClick={handleCopy} disabled={!words}>
                     {copied ? 'Copied!' : 'Copy'}
+                </button>
+                <button onClick={handleDownload} disabled={!words}>
+                    Download
                 </button>
             </div>
             {!valid && <div className="tool-error">Enter a valid numeric amount.</div>}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -39,6 +40,9 @@ export default function FindReplaceTool() {
       setTimeout(() => setCopied(false), 1500);
     } catch {
     }
+  }
+  function handleDownload() {
+    downloadFile(result, 'find-replace-result.txt', 'text/plain');
   }
   return (
     <div className="tool-page">
@@ -86,6 +90,9 @@ export default function FindReplaceTool() {
         </label>
         <button onClick={handleCopy} disabled={!result}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!result}>
+          Download
         </button>
       </div>
       {error && (

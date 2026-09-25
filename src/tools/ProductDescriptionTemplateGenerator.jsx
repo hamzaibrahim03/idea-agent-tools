@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 import { useAiGenerate } from '../lib/useAiGenerate.js';
 import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function ProductDescriptionTemplateGenerator() {
@@ -20,6 +21,9 @@ export default function ProductDescriptionTemplateGenerator() {
       setTimeout(() => setCopied(false), 1500);
     } catch {
     }
+  }
+  function handleDownload() {
+    downloadFile(output, 'product-description.txt', 'text/plain');
   }
   return (
     <div className="tool-page">
@@ -59,6 +63,9 @@ export default function ProductDescriptionTemplateGenerator() {
         </button>
         <button type="button" onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy description'}
+        </button>
+        <button type="button" onClick={handleDownload} disabled={!output}>
+          Download
         </button>
         <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
           {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}

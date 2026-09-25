@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function buildClamp({ minSize, maxSize, minWidth, maxWidth }) {
     const slope = (maxSize - minSize) / (maxWidth - minWidth);
     const yIntercept = minSize - slope * minWidth;
@@ -25,6 +26,9 @@ export default function CssClampCalculator() {
             setTimeout(() => setCopied(false), 1500);
         } catch {
         }
+    }
+    function handleDownload() {
+        downloadFile(css, 'clamp.css', 'text/css');
     }
     return (
         <div className="tool-page">
@@ -68,6 +72,7 @@ export default function CssClampCalculator() {
                     </div>
                     <div className="tool-controls">
                         <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy CSS'}</button>
+                        <button onClick={handleDownload}>Download</button>
                     </div>
                     <div className="tool-panel">
                         <label htmlFor="clamp-output">Generated CSS</label>

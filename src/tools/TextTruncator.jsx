@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function truncateByChars(text, limit, suffix) {
   if (text.length <= limit) return text;
   const cut = Math.max(0, limit - suffix.length);
@@ -31,6 +32,9 @@ export default function TextTruncator() {
       setTimeout(() => setCopied(false), 1500);
     } catch {
     }
+  }
+  function handleDownload() {
+    downloadFile(output, 'truncated.txt', 'text/plain');
   }
   return (
     <div className="tool-page">
@@ -69,6 +73,9 @@ export default function TextTruncator() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-panel">

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function toSentenceCase(text) {
   if (!text) return '';
   const lowered = text.toLowerCase();
@@ -25,6 +26,9 @@ export default function SentenceCaseConverter() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'sentence-case.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Sentence Case Converter</h1>
@@ -35,6 +39,9 @@ export default function SentenceCaseConverter() {
       <div className="tool-controls">
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

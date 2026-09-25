@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 // Minimal HTML -> Markdown for a small, dependency-free converter. Not a
 // full-spec conversion - covers the common cases (headings, bold/italic,
 // links, lists, paragraphs) mirroring the scope of MarkdownPreviewer's
@@ -87,6 +88,9 @@ export default function HtmlToMarkdownConverter() {
       // Non-critical convenience action - fail silently on clipboard denial.
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'converted.md', 'text/markdown');
+  }
   return (
     <div className="tool-page">
       <h1>HTML to Markdown Converter</h1>
@@ -98,6 +102,9 @@ export default function HtmlToMarkdownConverter() {
       <div className="tool-controls">
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy Markdown'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 const INVISIBLE_CHARS = [
     { code: 0x200b, name: 'Zero-width space' },
     { code: 0x200c, name: 'Zero-width non-joiner' },
@@ -51,6 +52,9 @@ export default function InvisibleCharacterRemover() {
         } catch {
         }
     }
+    function handleDownload() {
+        downloadFile(cleaned, 'cleaned-text.txt', 'text/plain');
+    }
     return (
         <div className="tool-page">
             <h1>Invisible Character Remover</h1>
@@ -63,6 +67,9 @@ export default function InvisibleCharacterRemover() {
             <div className="tool-controls">
                 <button onClick={handleCopy} disabled={!cleaned}>
                     {copied ? 'Copied!' : 'Copy cleaned text'}
+                </button>
+                <button onClick={handleDownload} disabled={!cleaned}>
+                    Download
                 </button>
             </div>
             <div className="tool-grid">

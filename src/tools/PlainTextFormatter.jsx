@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function cleanText(text) {
   const paragraphs = text
     .replace(/\r\n/g, '\n')
@@ -28,6 +29,9 @@ export default function PlainTextFormatter() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'cleaned-text.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Plain Text Formatter</h1>
@@ -39,6 +43,7 @@ export default function PlainTextFormatter() {
       </p>
       <div className="tool-controls">
         <button onClick={handleCopy} disabled={!output}>{copied ? 'Copied!' : 'Copy cleaned text'}</button>
+        <button onClick={handleDownload} disabled={!output}>Download</button>
         <button onClick={() => setInput('')} disabled={!input}>Clear</button>
       </div>
       <div className="tool-grid">

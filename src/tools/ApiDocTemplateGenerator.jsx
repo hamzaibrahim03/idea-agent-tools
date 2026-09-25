@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 import { useAiGenerate } from '../lib/useAiGenerate.js';
 import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
@@ -58,6 +59,9 @@ export default function ApiDocTemplateGenerator() {
             setTimeout(() => setCopied(false), 1500);
         } catch {
         }
+    }
+    function handleDownload() {
+        downloadFile(markdown, 'api-doc.md', 'text/markdown');
     }
     return (
         <div className="tool-page">
@@ -136,6 +140,7 @@ export default function ApiDocTemplateGenerator() {
                     {ai.loading ? 'Generating...' : '✨ Generate with AI'}
                 </button>
                 <button onClick={handleCopy} disabled={!doc}>{copied ? 'Copied!' : 'Copy Markdown'}</button>
+                <button onClick={handleDownload} disabled={!doc}>Download</button>
                 <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
                     {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
                 </button>

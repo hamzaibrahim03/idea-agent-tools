@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function buildGradient(type, angle, shape, stops) {
     const stopList = stops.map((s) => `${s.color} ${s.position}%`).join(', ');
     if (type === 'radial') return `radial-gradient(${shape}, ${stopList})`;
@@ -33,6 +34,9 @@ export default function CssGradientGenerator() {
         } catch {
         }
     }
+    function handleDownload() {
+        downloadFile(css, 'gradient.css', 'text/css');
+    }
     return (
         <div className="tool-page">
             <h1>CSS Gradient Generator</h1>
@@ -66,6 +70,7 @@ export default function CssGradientGenerator() {
                 )}
                 <button onClick={addStop}>Add color stop</button>
                 <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy CSS'}</button>
+                <button onClick={handleDownload}>Download</button>
             </div>
             {stops.map((stop) => (
                 <div className="tool-controls" key={stop.id}>

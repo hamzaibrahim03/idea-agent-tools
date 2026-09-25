@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 let nextId = 1;
 function makeDefaultRows() {
   return [
@@ -40,6 +41,9 @@ export default function ComponentPropsTableGenerator() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(markdown, 'component-props.md', 'text/markdown');
+  }
   return (
     <div className="tool-page">
       <h1>Component Props Table Generator</h1>
@@ -55,6 +59,7 @@ export default function ComponentPropsTableGenerator() {
         </label>
         <button onClick={addRow}>Add prop</button>
         <button onClick={handleCopy}>{copied ? 'Copied!' : 'Copy Markdown'}</button>
+        <button onClick={handleDownload}>Download</button>
       </div>
       <div className="tool-panel">
         <label>Props</label>

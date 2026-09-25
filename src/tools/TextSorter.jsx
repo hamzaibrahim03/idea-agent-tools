@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { downloadFile } from '../lib/downloadFile.js';
 function naturalCompare(a, b) {
   const chunk = /(\d+)|(\D+)/g;
   const aParts = a.match(chunk) || [];
@@ -61,6 +62,9 @@ export default function TextSorter() {
     } catch {
     }
   }
+  function handleDownload() {
+    downloadFile(output, 'sorted.txt', 'text/plain');
+  }
   return (
     <div className="tool-page">
       <h1>Text Sorter</h1>
@@ -90,6 +94,9 @@ export default function TextSorter() {
         </label>
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy output'}
+        </button>
+        <button onClick={handleDownload} disabled={!output}>
+          Download
         </button>
       </div>
       <div className="tool-grid">
