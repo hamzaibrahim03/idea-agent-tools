@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function shuffle(items) {
   const arr = [...items];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -20,6 +21,8 @@ export default function RandomTeamGenerator() {
   const [teamCount, setTeamCount] = useState(2);
   const [teams, setTeams] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const names = input
     .split('\n')
     .map((n) => n.trim())
@@ -38,6 +41,30 @@ export default function RandomTeamGenerator() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
+    }
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
     }
   }
   return (
@@ -69,7 +96,25 @@ export default function RandomTeamGenerator() {
         <button onClick={handleCopy} disabled={teams.length === 0}>
           {copied ? 'Copied!' : 'Copy result'}
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       {names.length === 0 && <div className="tool-error">Add at least one name above.</div>}
       {teams.length > 0 && (
         <div className="tool-grid">

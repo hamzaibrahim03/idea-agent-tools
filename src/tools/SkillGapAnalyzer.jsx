@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const ROLE_PRESETS = {
   'Frontend Developer': ['HTML', 'CSS', 'JavaScript', 'React', 'Git', 'Responsive Design', 'TypeScript', 'Testing'],
   'Data Analyst': ['SQL', 'Excel', 'Python', 'Statistics', 'Data Visualization', 'Tableau', 'A/B Testing'],
@@ -13,7 +14,33 @@ export default function SkillGapAnalyzer() {
   const [preset, setPreset] = useState('Frontend Developer');
   const [customTarget, setCustomTarget] = useState('');
   const [useCustom, setUseCustom] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const targetSkillsText = useCustom ? customTarget : ROLE_PRESETS[preset].join(', ');
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setCurrentSkillsText(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load your current skills from:');
+    if (!url) return;
+    try {
+      setCurrentSkillsText(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   const analysis = useMemo(() => {
     const current = parseSkills(currentSkillsText);
     const target = parseSkills(targetSkillsText);
@@ -50,7 +77,25 @@ export default function SkillGapAnalyzer() {
             </select>
           </label>
         )}
+        <button type="button" onClick={handleUploadClick}>
+          Upload current skills
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load current skills from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="sga-current">Your current skills (comma-separated)</label>

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 import { useAiGenerate } from '../lib/useAiGenerate.js';
 import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function ProductDescriptionTemplateGenerator() {
@@ -8,6 +9,8 @@ export default function ProductDescriptionTemplateGenerator() {
   const [features, setFeatures] = useState('');
   const [audience, setAudience] = useState('');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const ai = useAiGenerate('product-description-template', 'Product Description Generator');
   const result = ai.result;
   const output = result?.fullDescription || '';
@@ -24,6 +27,30 @@ export default function ProductDescriptionTemplateGenerator() {
   }
   function handleDownload() {
     downloadFile(output, 'product-description.txt', 'text/plain');
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setFeatures(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setFeatures(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
   }
   return (
     <div className="tool-page">
@@ -56,6 +83,26 @@ export default function ProductDescriptionTemplateGenerator() {
           placeholder={'24-hour cold retention\nLeak-proof lid\nBPA-free materials'}
           style={{ minHeight: 120 }}
         />
+        <div className="tool-controls">
+          <button type="button" onClick={handleUploadClick}>
+            Upload file
+          </button>
+          <button type="button" onClick={handleLoadFromUrl}>
+            Load from URL
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".txt,text/*"
+            style={{ display: 'none' }}
+          />
+        </div>
+        {loadError && (
+          <div className="tool-error">
+            <strong>Load error:</strong> {loadError}
+          </div>
+        )}
       </div>
       <div className="tool-controls">
         <button type="button" onClick={handleGenerate} disabled={ai.loading || !name.trim()}>

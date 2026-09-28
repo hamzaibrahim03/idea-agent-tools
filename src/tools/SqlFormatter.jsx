@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const CLAUSE_KEYWORDS = [
   'SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'OFFSET',
   'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN', 'FULL JOIN', 'JOIN',
@@ -37,7 +38,33 @@ const SAMPLE_SQL =
 export default function SqlFormatter() {
   const [input, setInput] = useState(SAMPLE_SQL);
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const formatted = formatSql(input);
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load SQL from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   async function handleCopy() {
     if (!formatted) return;
     try {
@@ -69,7 +96,25 @@ export default function SqlFormatter() {
         <button onClick={() => setInput('')} disabled={!input}>
           Clear
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".sql,.txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="sql-input">Input</label>

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const RULES = [
   {
     name: 'Pinned base image version',
@@ -95,7 +96,33 @@ RUN npm run build
 CMD ["node", "server.js"]`;
 export default function DockerfileLinter() {
   const [input, setInput] = useState(SAMPLE_DOCKERFILE);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const findings = input.trim() ? lintDockerfile(input) : [];
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load a Dockerfile from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   return (
     <div className="tool-page">
       <h1>Dockerfile Linter</h1>
@@ -114,6 +141,26 @@ export default function DockerfileLinter() {
           placeholder="FROM node:20-alpine&#10;WORKDIR /app&#10;..."
           spellCheck={false}
         />
+        <div className="tool-controls">
+          <button type="button" onClick={handleUploadClick}>
+            Upload file
+          </button>
+          <button type="button" onClick={handleLoadFromUrl}>
+            Load from URL
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="Dockerfile,.dockerfile,text/*"
+            style={{ display: 'none' }}
+          />
+        </div>
+        {loadError && (
+          <div className="tool-error">
+            <strong>Load error:</strong> {loadError}
+          </div>
+        )}
       </div>
       <div className="tool-panel">
         <label>

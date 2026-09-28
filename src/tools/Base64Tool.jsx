@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function encodeBase64(str) {
   const bytes = new TextEncoder().encode(str);
   let binary = '';
@@ -15,6 +16,8 @@ export default function Base64Tool() {
   const [input, setInput] = useState('');
   const [mode, setMode] = useState('encode');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   let output = '';
   let error = '';
   if (input) {
@@ -36,6 +39,30 @@ export default function Base64Tool() {
   function swap() {
     setMode((m) => (m === 'encode' ? 'decode' : 'encode'));
     setInput(output);
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
   }
   return (
     <div className="tool-page">
@@ -59,7 +86,25 @@ export default function Base64Tool() {
         <button onClick={handleCopy} disabled={!output}>
           {copied ? 'Copied!' : 'Copy result'}
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="b64-input">{mode === 'encode' ? 'Text' : 'Base64'}</label>

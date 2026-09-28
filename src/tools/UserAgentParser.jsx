@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const BROWSER_PATTERNS = [
   { name: 'Edge', regex: /Edg(?:A|iOS)?\/([\d.]+)/ },
   { name: 'Opera', regex: /(?:OPR|Opera)\/([\d.]+)/ },
@@ -44,7 +45,33 @@ const SAMPLE_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
 export default function UserAgentParser() {
   const [input, setInput] = useState(SAMPLE_UA);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const result = input.trim() ? parseUserAgent(input.trim()) : null;
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   return (
     <div className="tool-page">
       <h1>User-Agent Parser</h1>
@@ -60,7 +87,25 @@ export default function UserAgentParser() {
         <button onClick={() => setInput('')} disabled={!input}>
           Clear
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-panel">
         <label htmlFor="ua-input">User-Agent string</label>
         <textarea

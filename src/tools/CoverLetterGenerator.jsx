@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 import { useAiGenerate } from '../lib/useAiGenerate.js';
 import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
 export default function CoverLetterGenerator() {
@@ -11,6 +12,8 @@ export default function CoverLetterGenerator() {
     const [achievement, setAchievement] = useState('');
     const [whyCompany, setWhyCompany] = useState('');
     const [copied, setCopied] = useState(false);
+    const [loadError, setLoadError] = useState('');
+    const fileInputRef = useRef(null);
     const ai = useAiGenerate('cover-letter', 'Cover Letter Generator');
     const letter = ai.result?.letter || '';
     async function handleGenerate() {
@@ -26,6 +29,30 @@ export default function CoverLetterGenerator() {
     }
     function handleDownload() {
         downloadFile(letter, 'cover-letter.txt', 'text/plain');
+    }
+    function handleUploadClick() {
+        fileInputRef.current?.click();
+    }
+    async function handleFileChange(e) {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        try {
+            setAchievement(await readFileAsText(file));
+            setLoadError('');
+        } catch (err) {
+            setLoadError(err.message);
+        }
+    }
+    async function handleLoadFromUrl() {
+        const url = window.prompt('Enter a URL to load text from:');
+        if (!url) return;
+        try {
+            setAchievement(await loadTextFromUrl(url));
+            setLoadError('');
+        } catch (err) {
+            setLoadError(err.message);
+        }
     }
     return (
         <div className="tool-page">
@@ -60,6 +87,26 @@ export default function CoverLetterGenerator() {
             <div className="tool-panel">
                 <label htmlFor="cl-achievement">A key achievement</label>
                 <textarea id="cl-achievement" value={achievement} onChange={(e) => setAchievement(e.target.value)} placeholder="I led a cross-functional team that shipped a new feature ahead of schedule, increasing user engagement by 20%." style={{ minHeight: 70 }} />
+                <div className="tool-controls">
+                    <button type="button" onClick={handleUploadClick}>
+                        Upload file
+                    </button>
+                    <button type="button" onClick={handleLoadFromUrl}>
+                        Load from URL
+                    </button>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept=".txt,text/*"
+                        style={{ display: 'none' }}
+                    />
+                </div>
+                {loadError && (
+                    <div className="tool-error">
+                        <strong>Load error:</strong> {loadError}
+                    </div>
+                )}
             </div>
             <div className="tool-panel">
                 <label htmlFor="cl-why">Why this company</label>

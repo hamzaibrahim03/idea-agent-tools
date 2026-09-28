@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 // Minimal HTML -> Markdown for a small, dependency-free converter. Not a
 // full-spec conversion - covers the common cases (headings, bold/italic,
 // links, lists, paragraphs) mirroring the scope of MarkdownPreviewer's
@@ -77,6 +78,8 @@ export default function HtmlToMarkdownConverter() {
     '<h1>Title</h1>\n<p>Some <strong>bold</strong> and <em>italic</em> text with a <a href="https://example.com">link</a>.</p>\n<ul>\n  <li>First item</li>\n  <li>Second item</li>\n</ul>'
   );
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const output = input.trim() ? htmlToMarkdown(input) : '';
   async function handleCopy() {
     if (!output) return;
@@ -90,6 +93,30 @@ export default function HtmlToMarkdownConverter() {
   }
   function handleDownload() {
     downloadFile(output, 'converted.md', 'text/markdown');
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load HTML from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
   }
   return (
     <div className="tool-page">
@@ -106,7 +133,25 @@ export default function HtmlToMarkdownConverter() {
         <button onClick={handleDownload} disabled={!output}>
           Download
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".html,.htm,text/html,.txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="html-input">HTML</label>

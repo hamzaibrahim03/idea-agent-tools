@@ -1,14 +1,41 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAiGenerate } from '../lib/useAiGenerate.js';
 import OwnKeyPanel from '../components/OwnKeyPanel.jsx';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 export default function SopTemplateGenerator() {
   const [procedureName, setProcedureName] = useState('');
   const [purpose, setPurpose] = useState('');
   const [role, setRole] = useState('');
   const [steps, setSteps] = useState(['']);
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const ai = useAiGenerate('sop-template', 'SOP Template Generator');
   const sop = ai.result;
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setPurpose(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setPurpose(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   function updateStep(index, value) {
     setSteps((prev) => prev.map((s, i) => (i === index ? value : s)));
   }
@@ -65,7 +92,25 @@ export default function SopTemplateGenerator() {
         <button type="button" onClick={() => ai.setShowApiSetup((v) => !v)}>
           {ai.showApiSetup ? 'Hide own-key setup' : ai.apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       {ai.showApiSetup && (
         <OwnKeyPanel provider={ai.provider} updateProvider={ai.updateProvider} apiKey={ai.apiKey} updateApiKey={ai.updateApiKey} />
       )}

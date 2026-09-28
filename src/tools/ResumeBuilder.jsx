@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function emptyExperience() {
   return { role: '', company: '', dates: '', details: '' };
 }
@@ -16,6 +17,8 @@ export default function ResumeBuilder() {
   const [education, setEducation] = useState([emptyEducation()]);
   const [skills, setSkills] = useState('');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   function updateExperience(i, field, value) {
     setExperience((prev) => prev.map((e, idx) => (idx === i ? { ...e, [field]: value } : e)));
   }
@@ -54,6 +57,30 @@ export default function ResumeBuilder() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
+    }
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setSummary(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setSummary(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
     }
   }
   return (
@@ -103,6 +130,26 @@ export default function ResumeBuilder() {
           placeholder="A brief 2-3 sentence overview of your experience and strengths."
           style={{ minHeight: 80 }}
         />
+        <div className="tool-controls">
+          <button type="button" onClick={handleUploadClick}>
+            Upload file
+          </button>
+          <button type="button" onClick={handleLoadFromUrl}>
+            Load from URL
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".txt,text/*"
+            style={{ display: 'none' }}
+          />
+        </div>
+        {loadError && (
+          <div className="tool-error">
+            <strong>Load error:</strong> {loadError}
+          </div>
+        )}
       </div>
       <h2 style={{ fontSize: 18, margin: '20px 0 8px' }}>Work experience</h2>
       <div className="tool-controls">

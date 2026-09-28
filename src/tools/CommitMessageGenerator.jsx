@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const TYPES = ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore'];
 function buildCommitMessage({ type, scope, description, body, breaking, breakingDescription }) {
   if (!description.trim()) return '';
@@ -20,6 +21,8 @@ export default function CommitMessageGenerator() {
   const [breaking, setBreaking] = useState(false);
   const [breakingDescription, setBreakingDescription] = useState('');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const message = buildCommitMessage({ type, scope, description, body, breaking, breakingDescription });
   async function handleCopy() {
     if (!message) return;
@@ -28,6 +31,30 @@ export default function CommitMessageGenerator() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
+    }
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setBody(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setBody(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
     }
   }
   return (
@@ -42,7 +69,25 @@ export default function CommitMessageGenerator() {
         <button onClick={handleCopy} disabled={!message}>
           {copied ? 'Copied!' : 'Copy message'}
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-grid">
         <div>
           <div className="tool-panel">

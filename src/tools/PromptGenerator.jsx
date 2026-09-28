@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { callAnthropicDirect, callGeminiDirect, callServerFunction } from '../lib/aiClient.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const CATEGORIES = {
   video: {
     match: /\b(video|shoot|scene|footage|film|clip)\b/i,
@@ -236,6 +237,32 @@ export default function PromptGenerator() {
   const [aiOutput, setAiOutput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      updateField('description', await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      updateField('description', await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   function updateField(key, value) {
     setFields((f) => ({ ...f, [key]: value }));
     if (key === 'description') {
@@ -332,7 +359,25 @@ export default function PromptGenerator() {
         <button type="button" onClick={() => setShowApiSetup((v) => !v)}>
           {showApiSetup ? 'Hide own-key setup' : apiKey ? 'Own key (connected)' : 'Use my own key (unlimited)'}
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       {showApiSetup && (
         <div className="tool-panel" style={{ maxWidth: 480 }}>
           <p className="tool-description" style={{ marginTop: 0, fontSize: 13 }}>

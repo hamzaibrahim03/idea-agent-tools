@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const DEFAULT_ITEMS = [{ description: 'Pallet shipment', weight: '500', rate: '0.35' }];
 export default function DeliveryInvoiceGenerator() {
   const [shipperName, setShipperName] = useState('');
@@ -6,6 +7,57 @@ export default function DeliveryInvoiceGenerator() {
   const [invoiceNumber, setInvoiceNumber] = useState('INV-1001');
   const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [items, setItems] = useState(DEFAULT_ITEMS);
+  const [loadError, setLoadError] = useState('');
+  const shipperFileInputRef = useRef(null);
+  const receiverFileInputRef = useRef(null);
+  function handleShipperUploadClick() {
+    shipperFileInputRef.current?.click();
+  }
+  async function handleShipperFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setShipperName(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleShipperLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setShipperName(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  function handleReceiverUploadClick() {
+    receiverFileInputRef.current?.click();
+  }
+  async function handleReceiverFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setReceiverName(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleReceiverLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setReceiverName(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   function updateItem(index, field, value) {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, [field]: value } : it)));
   }
@@ -43,10 +95,40 @@ export default function DeliveryInvoiceGenerator() {
         <div className="tool-panel">
           <label htmlFor="div-shipper">Shipper name / address</label>
           <textarea id="div-shipper" value={shipperName} onChange={(e) => setShipperName(e.target.value)} style={{ minHeight: 70 }} />
+          <div className="tool-controls">
+            <button type="button" onClick={handleShipperUploadClick}>
+              Upload shipper info
+            </button>
+            <button type="button" onClick={handleShipperLoadFromUrl}>
+              Load shipper info from URL
+            </button>
+            <input
+              type="file"
+              ref={shipperFileInputRef}
+              onChange={handleShipperFileChange}
+              accept=".txt,text/*"
+              style={{ display: 'none' }}
+            />
+          </div>
         </div>
         <div className="tool-panel">
           <label htmlFor="div-receiver">Receiver name / address</label>
           <textarea id="div-receiver" value={receiverName} onChange={(e) => setReceiverName(e.target.value)} style={{ minHeight: 70 }} />
+          <div className="tool-controls">
+            <button type="button" onClick={handleReceiverUploadClick}>
+              Upload receiver info
+            </button>
+            <button type="button" onClick={handleReceiverLoadFromUrl}>
+              Load receiver info from URL
+            </button>
+            <input
+              type="file"
+              ref={receiverFileInputRef}
+              onChange={handleReceiverFileChange}
+              accept=".txt,text/*"
+              style={{ display: 'none' }}
+            />
+          </div>
         </div>
         <div className="tool-panel">
           <label htmlFor="div-number">Invoice number</label>
@@ -57,6 +139,11 @@ export default function DeliveryInvoiceGenerator() {
           <input id="div-date" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
         </div>
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="regex-groups-wrap">
         <table className="regex-groups-table">
           <thead>

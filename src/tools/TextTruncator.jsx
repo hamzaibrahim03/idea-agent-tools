@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function truncateByChars(text, limit, suffix) {
   if (text.length <= limit) return text;
   const cut = Math.max(0, limit - suffix.length);
@@ -16,6 +17,8 @@ export default function TextTruncator() {
   const [limit, setLimit] = useState(150);
   const [suffix, setSuffix] = useState('…');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const safeLimit = Math.max(1, Number(limit) || 1);
   const output = useMemo(() => {
     if (!input) return '';
@@ -35,6 +38,30 @@ export default function TextTruncator() {
   }
   function handleDownload() {
     downloadFile(output, 'truncated.txt', 'text/plain');
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
   }
   return (
     <div className="tool-page">
@@ -77,7 +104,25 @@ export default function TextTruncator() {
         <button onClick={handleDownload} disabled={!output}>
           Download
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-panel">
         <label htmlFor="trunc-input">Input</label>
         <textarea id="trunc-input" value={input} onChange={(e) => setInput(e.target.value)} spellCheck={false} placeholder="Paste text here" />

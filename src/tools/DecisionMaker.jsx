@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const YES_NO_MAYBE = ['Yes', 'No', 'Maybe'];
 function randomIndex(length) {
   const maxUint32 = 0xffffffff;
@@ -14,6 +15,8 @@ export default function DecisionMaker() {
   const [optionsText, setOptionsText] = useState('Pizza\nSushi\nTacos\nBurgers');
   const [question, setQuestion] = useState('');
   const [result, setResult] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const options = optionsText
     .split('\n')
     .map((line) => line.trim())
@@ -24,6 +27,30 @@ export default function DecisionMaker() {
       setResult(options[randomIndex(options.length)]);
     } else {
       setResult(YES_NO_MAYBE[randomIndex(YES_NO_MAYBE.length)]);
+    }
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setOptionsText(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setOptionsText(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
     }
   }
   return (
@@ -55,6 +82,26 @@ export default function DecisionMaker() {
             onChange={(e) => setOptionsText(e.target.value)}
             placeholder={'Option A\nOption B\nOption C'}
           />
+          <div className="tool-controls">
+            <button type="button" onClick={handleUploadClick}>
+              Upload file
+            </button>
+            <button type="button" onClick={handleLoadFromUrl}>
+              Load from URL
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".txt,text/*"
+              style={{ display: 'none' }}
+            />
+          </div>
+          {loadError && (
+            <div className="tool-error">
+              <strong>Load error:</strong> {loadError}
+            </div>
+          )}
         </div>
       ) : (
         <div className="tool-panel">

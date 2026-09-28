@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const STOPWORDS = new Set(
   ('a an the and or but if of to in on for with at by from as is are was were be been being ' +
     'this that these those it its your you we our their they i he she will shall can could ' +
@@ -18,6 +19,57 @@ export default function AtsKeywordChecker() {
   const [resume, setResume] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [topN, setTopN] = useState('25');
+  const [loadError, setLoadError] = useState('');
+  const resumeFileInputRef = useRef(null);
+  const jdFileInputRef = useRef(null);
+  function handleResumeUploadClick() {
+    resumeFileInputRef.current?.click();
+  }
+  async function handleResumeFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setResume(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleResumeLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load resume text from:');
+    if (!url) return;
+    try {
+      setResume(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  function handleJdUploadClick() {
+    jdFileInputRef.current?.click();
+  }
+  async function handleJdFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setJobDescription(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleJdLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load the job description from:');
+    if (!url) return;
+    try {
+      setJobDescription(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   const analysis = useMemo(() => {
     const jdWords = extractWords(jobDescription);
     const resumeWordSet = new Set(extractWords(resume));
@@ -47,14 +99,49 @@ export default function AtsKeywordChecker() {
           <input type="number" min={5} max={100} value={topN} onChange={(e) => setTopN(e.target.value)} style={{ width: '70px' }} />
         </label>
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="ats-resume">Your resume text</label>
           <textarea id="ats-resume" value={resume} onChange={(e) => setResume(e.target.value)} placeholder="Paste your resume text here" style={{ minHeight: 220 }} />
+          <div className="tool-controls" style={{ marginTop: 8 }}>
+            <button type="button" onClick={handleResumeUploadClick}>
+              Upload file
+            </button>
+            <button type="button" onClick={handleResumeLoadFromUrl}>
+              Load from URL
+            </button>
+            <input
+              type="file"
+              ref={resumeFileInputRef}
+              onChange={handleResumeFileChange}
+              accept=".txt,text/*"
+              style={{ display: 'none' }}
+            />
+          </div>
         </div>
         <div className="tool-panel">
           <label htmlFor="ats-jd">Job description</label>
           <textarea id="ats-jd" value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="Paste the job description here" style={{ minHeight: 220 }} />
+          <div className="tool-controls" style={{ marginTop: 8 }}>
+            <button type="button" onClick={handleJdUploadClick}>
+              Upload file
+            </button>
+            <button type="button" onClick={handleJdLoadFromUrl}>
+              Load from URL
+            </button>
+            <input
+              type="file"
+              ref={jdFileInputRef}
+              onChange={handleJdFileChange}
+              accept=".txt,text/*"
+              style={{ display: 'none' }}
+            />
+          </div>
         </div>
       </div>
       {!analysis && <div className="tool-placeholder">Paste a job description to extract its top keywords.</div>}

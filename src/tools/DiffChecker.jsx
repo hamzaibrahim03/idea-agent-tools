@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function diffLines(a, b) {
   const linesA = a.split('\n');
   const linesB = b.split('\n');
@@ -30,7 +31,58 @@ function diffLines(a, b) {
 export default function DiffChecker() {
   const [left, setLeft] = useState('');
   const [right, setRight] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const leftFileInputRef = useRef(null);
+  const rightFileInputRef = useRef(null);
   const diff = left || right ? diffLines(left, right) : [];
+  function handleLeftUploadClick() {
+    leftFileInputRef.current?.click();
+  }
+  async function handleLeftFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setLeft(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLeftLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load the original text from:');
+    if (!url) return;
+    try {
+      setLeft(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  function handleRightUploadClick() {
+    rightFileInputRef.current?.click();
+  }
+  async function handleRightFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setRight(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleRightLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load the changed text from:');
+    if (!url) return;
+    try {
+      setRight(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   return (
     <div className="tool-page">
       <h1>Text Diff Checker</h1>
@@ -42,12 +94,47 @@ export default function DiffChecker() {
         <div className="tool-panel">
           <label htmlFor="diff-left">Original</label>
           <textarea id="diff-left" value={left} onChange={(e) => setLeft(e.target.value)} spellCheck={false} placeholder="Paste original text" />
+          <div className="tool-controls">
+            <button type="button" onClick={handleLeftUploadClick}>
+              Upload original
+            </button>
+            <button type="button" onClick={handleLeftLoadFromUrl}>
+              Load original from URL
+            </button>
+            <input
+              type="file"
+              ref={leftFileInputRef}
+              onChange={handleLeftFileChange}
+              accept=".txt,text/*"
+              style={{ display: 'none' }}
+            />
+          </div>
         </div>
         <div className="tool-panel">
           <label htmlFor="diff-right">Changed</label>
           <textarea id="diff-right" value={right} onChange={(e) => setRight(e.target.value)} spellCheck={false} placeholder="Paste changed text" />
+          <div className="tool-controls">
+            <button type="button" onClick={handleRightUploadClick}>
+              Upload changed
+            </button>
+            <button type="button" onClick={handleRightLoadFromUrl}>
+              Load changed from URL
+            </button>
+            <input
+              type="file"
+              ref={rightFileInputRef}
+              onChange={handleRightFileChange}
+              accept=".txt,text/*"
+              style={{ display: 'none' }}
+            />
+          </div>
         </div>
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       {diff.length > 0 && (
         <div className="regex-highlighted">
           {diff.map((line, idx) => (

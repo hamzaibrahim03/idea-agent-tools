@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const ALGORITHMS = ['SHA-256', 'SHA-384', 'SHA-512', 'SHA-1'];
 async function hashText(text, algorithm) {
   const bytes = new TextEncoder().encode(text);
@@ -12,6 +13,8 @@ export default function HashGenerator() {
   const [algorithm, setAlgorithm] = useState('SHA-256');
   const [hash, setHash] = useState('');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   useEffect(() => {
     if (!input) {
       setHash('');
@@ -32,6 +35,30 @@ export default function HashGenerator() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
+    }
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
     }
   }
   return (
@@ -66,6 +93,26 @@ export default function HashGenerator() {
           placeholder="Type or paste text to hash"
           spellCheck={false}
         />
+        <div className="tool-controls">
+          <button type="button" onClick={handleUploadClick}>
+            Upload file
+          </button>
+          <button type="button" onClick={handleLoadFromUrl}>
+            Load from URL
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".txt,text/*"
+            style={{ display: 'none' }}
+          />
+        </div>
+        {loadError && (
+          <div className="tool-error">
+            <strong>Load error:</strong> {loadError}
+          </div>
+        )}
       </div>
       <div className="tool-panel">
         <label htmlFor="hash-output">{algorithm} hash</label>

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function shuffle(items) {
   const arr = [...items];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -11,6 +12,8 @@ export default function ListShuffler() {
   const [input, setInput] = useState('Apple\nBanana\nCherry\nDate\nElderberry');
   const [shuffled, setShuffled] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const items = input.split('\n').map((l) => l.trim()).filter(Boolean);
   function handleShuffle() {
     setShuffled(shuffle(items));
@@ -29,6 +32,30 @@ export default function ListShuffler() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
+    }
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
     }
   }
   return (
@@ -52,7 +79,25 @@ export default function ListShuffler() {
         <button onClick={handleCopy} disabled={shuffled.length === 0}>
           {copied ? 'Copied!' : 'Copy result'}
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       {shuffled.length > 0 && (
         <ul className="uuid-list">
           {shuffled.map((item, i) => (

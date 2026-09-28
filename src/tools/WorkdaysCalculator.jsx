@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function parseHolidays(text) {
   return text
     .split('\n')
@@ -31,8 +32,34 @@ export default function WorkdaysCalculator() {
   const [startDate, setStartDate] = useState(todayStr());
   const [endDate, setEndDate] = useState(todayStr());
   const [holidaysText, setHolidaysText] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const holidays = parseHolidays(holidaysText);
   const result = countWorkdays(startDate, endDate, holidays);
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setHolidaysText(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setHolidaysText(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   return (
     <div className="tool-page">
       <h1>Workdays Calculator</h1>
@@ -60,6 +87,26 @@ export default function WorkdaysCalculator() {
           placeholder={'2026-01-01\n2026-12-25'}
         />
       </div>
+      <div className="tool-controls">
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
+      </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       {!result && <div className="tool-error">Start date must be a valid date on or before the end date.</div>}
       {result && (
         <div className="timestamp-result">

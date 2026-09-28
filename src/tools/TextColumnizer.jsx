@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function columnize(items, columnCount) {
   if (items.length === 0) return '';
   const rows = Math.ceil(items.length / columnCount);
@@ -19,6 +20,8 @@ export default function TextColumnizer() {
   const [input, setInput] = useState('');
   const [columnCount, setColumnCount] = useState(3);
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const items = useMemo(
     () => input.split('\n').map((l) => l.trim()).filter(Boolean),
     [input]
@@ -38,6 +41,30 @@ export default function TextColumnizer() {
   }
   function handleDownload() {
     downloadFile(output, 'columnized.txt', 'text/plain');
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
   }
   return (
     <div className="tool-page">
@@ -66,7 +93,25 @@ export default function TextColumnizer() {
         <button onClick={handleDownload} disabled={!output}>
           Download
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="col-input">Input (one item per line)</label>

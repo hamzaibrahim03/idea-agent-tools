@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function mean(nums) {
   return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
@@ -20,6 +21,32 @@ function variance(nums, avg, sample) {
 }
 export default function StatisticsCalculator() {
   const [input, setInput] = useState('4, 8, 6, 5, 3, 9, 8, 7');
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   const nums = input
     .split(/[,\s]+/)
     .map((s) => s.trim())
@@ -68,6 +95,26 @@ export default function StatisticsCalculator() {
           style={{ minHeight: '100px' }}
         />
       </div>
+      <div className="tool-controls">
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
+      </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       {error && <div className="tool-error">{error}</div>}
       {stats && (
         <div className="timestamp-result">

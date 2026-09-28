@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { loadTextFromUrl } from '../lib/loadInput.js';
 function readFileAsDataUri(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -22,6 +23,7 @@ export default function DataUriConverter() {
     const [decodeInput, setDecodeInput] = useState('');
     const [error, setError] = useState('');
     const [copied, setCopied] = useState(false);
+    const [loadError, setLoadError] = useState('');
     const fileInputRef = useRef(null);
     async function handleFileChange(e) {
         const file = e.target.files?.[0];
@@ -46,6 +48,16 @@ export default function DataUriConverter() {
     }
     function handleDownload() {
         downloadFile(dataUri, `${fileName || 'file'}.datauri.txt`, 'text/plain');
+    }
+    async function handleLoadFromUrl() {
+        const url = window.prompt('Enter a URL to load a data: URI from:');
+        if (!url) return;
+        try {
+            setDecodeInput(await loadTextFromUrl(url));
+            setLoadError('');
+        } catch (err) {
+            setLoadError(err.message);
+        }
     }
     const decoded = (() => {
         if (!decodeInput.trim()) return null;
@@ -103,7 +115,15 @@ export default function DataUriConverter() {
             <div className="tool-panel">
                 <label htmlFor="datauri-input">Or paste a data: URI to decode</label>
                 <textarea id="datauri-input" value={decodeInput} onChange={(e) => setDecodeInput(e.target.value)} placeholder="data:text/plain;base64,SGVsbG8h" spellCheck={false} />
+                <div className="tool-controls">
+                    <button type="button" onClick={handleLoadFromUrl}>Load from URL</button>
+                </div>
             </div>
+            {loadError && (
+                <div className="tool-error">
+                    <strong>Load error:</strong> {loadError}
+                </div>
+            )}
             {decodeInput.trim() && !decoded && (
                 <div className="tool-error">
                     <strong>Error:</strong> Not a valid data: URI.

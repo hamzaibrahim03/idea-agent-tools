@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function buildCrcTable() {
   const table = new Uint32Array(256);
   for (let n = 0; n < 256; n++) {
@@ -21,6 +22,8 @@ function crc32(bytes) {
 export default function Crc32Calculator() {
   const [input, setInput] = useState('123456789');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const checksum = useMemo(() => {
     const bytes = new TextEncoder().encode(input);
     return crc32(bytes);
@@ -32,6 +35,30 @@ export default function Crc32Calculator() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
+    }
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
     }
   }
   return (
@@ -53,6 +80,26 @@ export default function Crc32Calculator() {
           placeholder="Type or paste text"
           spellCheck={false}
         />
+        <div className="tool-controls">
+          <button type="button" onClick={handleUploadClick}>
+            Upload file
+          </button>
+          <button type="button" onClick={handleLoadFromUrl}>
+            Load from URL
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".txt,text/*"
+            style={{ display: 'none' }}
+          />
+        </div>
+        {loadError && (
+          <div className="tool-error">
+            <strong>Load error:</strong> {loadError}
+          </div>
+        )}
       </div>
       <div className="tool-grid">
         <div className="tool-panel">

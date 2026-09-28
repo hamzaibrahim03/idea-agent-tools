@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function randomFloat01() {
   const buf = new Uint32Array(1);
   crypto.getRandomValues(buf);
@@ -31,11 +32,37 @@ function pickWeighted(options) {
 export default function WeightedRandomPicker() {
   const [input, setInput] = useState('Pizza, 5\nSushi, 3\nTacos, 2\nSalad, 1');
   const [result, setResult] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const options = parseOptions(input);
   const totalWeight = options.reduce((sum, o) => sum + o.weight, 0);
   function handlePick() {
     if (options.length === 0) return;
     setResult(pickWeighted(options));
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
   }
   return (
     <div className="tool-page">
@@ -59,7 +86,25 @@ export default function WeightedRandomPicker() {
         <button onClick={handlePick} disabled={options.length === 0}>
           Pick at random
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       {options.length === 0 && <div className="tool-error">Add at least one option above.</div>}
       {options.length > 0 && (
         <ul className="uuid-list">

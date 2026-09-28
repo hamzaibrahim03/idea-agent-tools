@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -11,6 +12,57 @@ export default function InvoiceGenerator() {
   const [invoiceDate, setInvoiceDate] = useState(todayIso());
   const [taxRate, setTaxRate] = useState('0');
   const [items, setItems] = useState([{ description: '', qty: '1', rate: '0' }]);
+  const [loadError, setLoadError] = useState('');
+  const businessFileInputRef = useRef(null);
+  const clientFileInputRef = useRef(null);
+  function handleBusinessUploadClick() {
+    businessFileInputRef.current?.click();
+  }
+  async function handleBusinessFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setBusinessInfo(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleBusinessLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setBusinessInfo(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  function handleClientUploadClick() {
+    clientFileInputRef.current?.click();
+  }
+  async function handleClientFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setClientInfo(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleClientLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setClientInfo(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   function updateItem(index, field, value) {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, [field]: value } : it)));
   }
@@ -46,14 +98,49 @@ export default function InvoiceGenerator() {
           <input id="inv-biz-name" type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
           <label htmlFor="inv-biz-info">Your business address / contact</label>
           <textarea id="inv-biz-info" value={businessInfo} onChange={(e) => setBusinessInfo(e.target.value)} style={{ minHeight: '70px' }} />
+          <div className="tool-controls">
+            <button type="button" onClick={handleBusinessUploadClick}>
+              Upload business info
+            </button>
+            <button type="button" onClick={handleBusinessLoadFromUrl}>
+              Load business info from URL
+            </button>
+            <input
+              type="file"
+              ref={businessFileInputRef}
+              onChange={handleBusinessFileChange}
+              accept=".txt,text/*"
+              style={{ display: 'none' }}
+            />
+          </div>
         </div>
         <div className="tool-panel">
           <label htmlFor="inv-client-name">Client name</label>
           <input id="inv-client-name" type="text" value={clientName} onChange={(e) => setClientName(e.target.value)} />
           <label htmlFor="inv-client-info">Client address / contact</label>
           <textarea id="inv-client-info" value={clientInfo} onChange={(e) => setClientInfo(e.target.value)} style={{ minHeight: '70px' }} />
+          <div className="tool-controls">
+            <button type="button" onClick={handleClientUploadClick}>
+              Upload client info
+            </button>
+            <button type="button" onClick={handleClientLoadFromUrl}>
+              Load client info from URL
+            </button>
+            <input
+              type="file"
+              ref={clientFileInputRef}
+              onChange={handleClientFileChange}
+              accept=".txt,text/*"
+              style={{ display: 'none' }}
+            />
+          </div>
         </div>
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-controls">
         <label>
           Invoice #:

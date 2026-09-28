@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function textToBinary(text) {
   const bytes = new TextEncoder().encode(text);
   return Array.from(bytes, (b) => b.toString(2).padStart(8, '0')).join(' ');
@@ -29,6 +30,8 @@ export default function BinaryAsciiConverter() {
   const [direction, setDirection] = useState('toCode');
   const [input, setInput] = useState('');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   let output = '';
   let error = '';
   if (input) {
@@ -54,6 +57,30 @@ export default function BinaryAsciiConverter() {
   function handleDownload() {
     const filename = direction === 'toCode' ? `text-to-${mode.toLowerCase()}.txt` : `${mode.toLowerCase()}-to-text.txt`;
     downloadFile(output, filename, 'text/plain');
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
   }
   const inputLabel = direction === 'toCode' ? 'Text' : mode === 'Binary' ? 'Binary' : 'Hex';
   const outputLabel = direction === 'toCode' ? (mode === 'Binary' ? 'Binary' : 'Hex') : 'Text';
@@ -85,7 +112,25 @@ export default function BinaryAsciiConverter() {
         <button onClick={handleDownload} disabled={!output}>
           Download
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="binary-input">{inputLabel}</label>

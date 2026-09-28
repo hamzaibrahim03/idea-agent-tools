@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function parseEnv(text) {
   const rows = [];
   const lines = text.split('\n');
@@ -28,6 +29,8 @@ export default function EnvFileParser() {
   const [input, setInput] = useState(SAMPLE_ENV);
   const [rows, setRows] = useState([{ key: '', value: '' }]);
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const parsedRows = parseEnv(input);
   const generatedEnv = rowsToEnv(rows);
   function updateRow(index, field, value) {
@@ -51,6 +54,30 @@ export default function EnvFileParser() {
   function handleDownload() {
     downloadFile(generatedEnv, '.env', 'text/plain');
   }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   return (
     <div className="tool-page">
       <h1>.env File Parser</h1>
@@ -68,7 +95,27 @@ export default function EnvFileParser() {
           placeholder="KEY=value"
           spellCheck={false}
         />
+        <div className="tool-controls">
+          <button type="button" onClick={handleUploadClick}>
+            Upload file
+          </button>
+          <button type="button" onClick={handleLoadFromUrl}>
+            Load from URL
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".env,.txt,text/*"
+            style={{ display: 'none' }}
+          />
+        </div>
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       {parsedRows.length > 0 && (
         <div className="tool-panel">
           <label>Parsed variables ({parsedRows.length})</label>

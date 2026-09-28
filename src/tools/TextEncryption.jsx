@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const PBKDF2_ITERATIONS = 100000;
@@ -49,6 +50,8 @@ export default function TextEncryption() {
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   async function handleRun() {
     setError('');
     setOutput('');
@@ -71,6 +74,30 @@ export default function TextEncryption() {
   }
   function handleDownload() {
     downloadFile(output, mode === 'encrypt' ? 'encrypted.txt' : 'decrypted.txt', 'text/plain');
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
   }
   return (
     <div className="tool-page">
@@ -95,7 +122,25 @@ export default function TextEncryption() {
         <button onClick={handleRun} disabled={!input.trim() || !password}>
           {mode === 'encrypt' ? 'Encrypt' : 'Decrypt'}
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-panel">
         <label htmlFor="encrypt-input">{mode === 'encrypt' ? 'Text to encrypt' : 'Encrypted text (base64)'}</label>
         <textarea id="encrypt-input" value={input} onChange={(e) => setInput(e.target.value)} spellCheck={false} />

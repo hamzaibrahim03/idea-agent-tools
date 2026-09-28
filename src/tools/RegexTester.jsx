@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const FLAG_OPTIONS = [
   { key: 'g', label: 'Global (g)' },
   { key: 'i', label: 'Case-insensitive (i)' },
@@ -9,6 +10,8 @@ export default function RegexTester() {
   const [pattern, setPattern] = useState('');
   const [flags, setFlags] = useState(['g']);
   const [testString, setTestString] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   function toggleFlag(key) {
     setFlags((prev) => (prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key]));
   }
@@ -34,6 +37,30 @@ export default function RegexTester() {
       return { error: e.message, matches: [], highlighted: null };
     }
   }, [pattern, flags, testString]);
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setTestString(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setTestString(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   return (
     <div className="tool-page">
       <h1>Regex Tester</h1>
@@ -78,6 +105,26 @@ export default function RegexTester() {
           placeholder="Paste text to test against"
           spellCheck={false}
         />
+        <div className="tool-controls">
+          <button type="button" onClick={handleUploadClick}>
+            Upload file
+          </button>
+          <button type="button" onClick={handleLoadFromUrl}>
+            Load from URL
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".txt,text/*"
+            style={{ display: 'none' }}
+          />
+        </div>
+        {loadError && (
+          <div className="tool-error">
+            <strong>Load error:</strong> {loadError}
+          </div>
+        )}
       </div>
       <div className="tool-panel">
         <label>Result ({matches.length} match{matches.length === 1 ? '' : 'es'})</label>

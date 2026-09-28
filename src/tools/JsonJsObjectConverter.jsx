@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const IDENTIFIER_KEY = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 function toJsObjectLiteral(value, indent = 0) {
   const pad = '  '.repeat(indent);
@@ -33,6 +34,8 @@ export default function JsonJsObjectConverter() {
   const [mode, setMode] = useState('json-to-js');
   const [input, setInput] = useState('{\n  "name": "example",\n  "count": 2,\n  "tags": ["a", "b"]\n}');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   let output = '';
   let error = '';
   if (input.trim()) {
@@ -58,6 +61,30 @@ export default function JsonJsObjectConverter() {
       downloadFile(output, 'converted.json', 'application/json');
     }
   }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   return (
     <div className="tool-page">
       <h1>JSON ⇄ JS Object Literal Converter</h1>
@@ -80,7 +107,25 @@ export default function JsonJsObjectConverter() {
         <button onClick={handleDownload} disabled={!output}>
           Download
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".json,.js,.txt,text/*,application/json"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="jsobj-input">{mode === 'json-to-js' ? 'JSON input' : 'JS object input'}</label>

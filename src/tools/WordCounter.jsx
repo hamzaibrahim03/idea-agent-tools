@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function countStats(text) {
   const trimmed = text.trim();
   const words = trimmed ? trimmed.split(/\s+/).length : 0;
@@ -11,7 +12,33 @@ function countStats(text) {
 }
 export default function WordCounter() {
   const [input, setInput] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const stats = useMemo(() => countStats(input), [input]);
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   return (
     <div className="tool-page">
       <h1>Word Counter</h1>
@@ -29,6 +56,26 @@ export default function WordCounter() {
           style={{ minHeight: 260 }}
         />
       </div>
+      <div className="tool-controls">
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
+      </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="timestamp-result">
         <span>
           <strong>Words:</strong> {stats.words}

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const SUPPORTED = typeof window !== 'undefined' && 'speechSynthesis' in window;
 export default function TextToSpeechPreview() {
   const [text, setText] = useState('Type something and press Speak to hear it read aloud.');
@@ -8,6 +9,8 @@ export default function TextToSpeechPreview() {
   const [rate, setRate] = useState(1);
   const [pitch, setPitch] = useState(1);
   const [speaking, setSpeaking] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   useEffect(() => {
     if (!SUPPORTED) return;
     function loadVoices() {
@@ -42,6 +45,30 @@ export default function TextToSpeechPreview() {
   }
   function handleDownload() {
     downloadFile(text, 'speech-text.txt', 'text/plain');
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setText(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setText(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
   }
   return (
     <div className="tool-page">
@@ -102,7 +129,25 @@ export default function TextToSpeechPreview() {
         <button onClick={handleDownload} disabled={!text}>
           Download text
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-panel">
         <label htmlFor="tts-input">Text</label>
         <textarea

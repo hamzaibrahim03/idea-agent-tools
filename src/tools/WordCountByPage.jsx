@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 const CONVENTIONS = {
   single: { label: 'Single-spaced (~500 words/page)', wordsPerPage: 500 },
   double: { label: 'Double-spaced (~250 words/page)', wordsPerPage: 250 },
@@ -8,10 +9,36 @@ export default function WordCountByPage() {
   const [input, setInput] = useState('');
   const [convention, setConvention] = useState('double');
   const [customWpp, setCustomWpp] = useState(300);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const wordCount = useMemo(() => {
     const trimmed = input.trim();
     return trimmed ? trimmed.split(/\s+/).length : 0;
   }, [input]);
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   const wordsPerPage = convention === 'custom' ? Math.max(1, parseInt(customWpp, 10) || 1) : CONVENTIONS[convention].wordsPerPage;
   const estimatedPages = wordCount > 0 ? wordCount / wordsPerPage : 0;
   return (
@@ -37,7 +64,25 @@ export default function WordCountByPage() {
             <input type="number" min="1" value={customWpp} onChange={(e) => setCustomWpp(e.target.value)} style={{ width: '80px' }} />
           </label>
         )}
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-panel">
         <label htmlFor="wcp-input">Text</label>
         <textarea id="wcp-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Paste or type your document text here" style={{ minHeight: 260 }} />

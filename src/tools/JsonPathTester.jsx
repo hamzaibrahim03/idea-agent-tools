@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function tokenizePath(path) {
   const trimmed = path.trim();
   if (!trimmed.startsWith('$')) {
@@ -52,6 +53,8 @@ export default function JsonPathTester() {
   const [jsonInput, setJsonInput] = useState('{\n  "store": {\n    "book": [\n      { "title": "Book One", "price": 10 },\n      { "title": "Book Two", "price": 15 }\n    ]\n  }\n}');
   const [path, setPath] = useState('$.store.book[0].title');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const result = (() => {
     let data;
     try {
@@ -82,6 +85,30 @@ export default function JsonPathTester() {
   }
   function handleDownload() {
     downloadFile(outputText, 'jsonpath-matches.json', 'application/json');
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setJsonInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load JSON from:');
+    if (!url) return;
+    try {
+      setJsonInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
   }
   return (
     <div className="tool-page">
@@ -127,7 +154,25 @@ export default function JsonPathTester() {
         <button onClick={handleDownload} disabled={!outputText}>
           Download
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".json,.txt,text/*,application/json"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       {result.error && (
         <div className="tool-error">
           <strong>Error:</strong> {result.error}

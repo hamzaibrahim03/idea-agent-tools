@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function cleanText(text) {
   const paragraphs = text
     .replace(/\r\n/g, '\n')
@@ -19,6 +20,8 @@ function cleanText(text) {
 export default function PlainTextFormatter() {
   const [input, setInput] = useState('');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   const output = input ? cleanText(input) : '';
   async function handleCopy() {
     if (!output) return;
@@ -31,6 +34,30 @@ export default function PlainTextFormatter() {
   }
   function handleDownload() {
     downloadFile(output, 'cleaned-text.txt', 'text/plain');
+  }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load text from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
   }
   return (
     <div className="tool-page">
@@ -45,7 +72,25 @@ export default function PlainTextFormatter() {
         <button onClick={handleCopy} disabled={!output}>{copied ? 'Copied!' : 'Copy cleaned text'}</button>
         <button onClick={handleDownload} disabled={!output}>Download</button>
         <button onClick={() => setInput('')} disabled={!input}>Clear</button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,text/*"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="ptf-input">Input (messy text)</label>

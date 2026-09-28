@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { downloadFile } from '../lib/downloadFile.js';
+import { readFileAsText, loadTextFromUrl } from '../lib/loadInput.js';
 function toPascalCase(key) {
   const cleaned = key.replace(/[^a-zA-Z0-9]+/g, ' ').trim();
   return cleaned
@@ -59,6 +60,8 @@ export default function JsonToTypescriptInterface() {
   const [input, setInput] = useState('{\n  "id": 1,\n  "name": "Ada Lovelace",\n  "active": true,\n  "tags": ["admin", "user"],\n  "address": {\n    "city": "London",\n    "zip": "SW1"\n  }\n}');
   const [rootName, setRootName] = useState('Root');
   const [copied, setCopied] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const fileInputRef = useRef(null);
   let output = '';
   let error = '';
   if (input.trim()) {
@@ -80,6 +83,30 @@ export default function JsonToTypescriptInterface() {
   function handleDownload() {
     downloadFile(output, 'interfaces.ts', 'text/typescript');
   }
+  function handleUploadClick() {
+    fileInputRef.current?.click();
+  }
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setInput(await readFileAsText(file));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
+  async function handleLoadFromUrl() {
+    const url = window.prompt('Enter a URL to load JSON from:');
+    if (!url) return;
+    try {
+      setInput(await loadTextFromUrl(url));
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message);
+    }
+  }
   return (
     <div className="tool-page">
       <h1>JSON to TypeScript Interface</h1>
@@ -99,7 +126,25 @@ export default function JsonToTypescriptInterface() {
         <button onClick={handleDownload} disabled={!output}>
           Download
         </button>
+        <button type="button" onClick={handleUploadClick}>
+          Upload file
+        </button>
+        <button type="button" onClick={handleLoadFromUrl}>
+          Load from URL
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".json,.txt,text/*,application/json"
+          style={{ display: 'none' }}
+        />
       </div>
+      {loadError && (
+        <div className="tool-error">
+          <strong>Load error:</strong> {loadError}
+        </div>
+      )}
       <div className="tool-grid">
         <div className="tool-panel">
           <label htmlFor="jsts-input">JSON input</label>
