@@ -13,6 +13,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "mammoth": "^1.13.0",
+    "nspell": "^2.1.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",

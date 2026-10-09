@@ -368,6 +368,7 @@ import WaterTankCalculator from './tools/WaterTankCalculator.jsx';
 import WindowDoorQuantityCalculator from './tools/WindowDoorQuantityCalculator.jsx';
 import WordCountByPage from './tools/WordCountByPage.jsx';
 import JpgToTextConverter from './tools/JpgToTextConverter.jsx';
+import ProofreaderTool from './tools/ProofreaderTool.jsx';
 export const TOOLS = [
   {
     slug: 'json-formatter',
@@ -3482,6 +3483,15 @@ export const TOOLS = [
     seoDescription:
       'Free online JPG to Text Converter (OCR). Extract text from a JPG, PNG, or other image using real optical character recognition that runs entirely in your browser via WebAssembly - no upload, no sign-up.',
     component: JpgToTextConverter
+  },
+  {
+    slug: 'proofreader',
+    category: 'documents',
+    name: 'Proofreader (Spelling & Grammar Checker)',
+    description: 'Check spelling in your browser (no upload) across ~90 languages, plus an opt-in grammar & style check via LanguageTool.',
+    seoDescription:
+      'Free online Proofreader. Check spelling entirely in your browser across about 90 languages, with an opt-in grammar and style check - no sign-up.',
+    component: ProofreaderTool
   }
 ];
 export function getToolBySlug(slug) {

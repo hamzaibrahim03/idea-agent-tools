@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { createWorker } from 'tesseract.js';
+import { OCR_LANGUAGES } from './ocrLanguages.js';
 
 export default function JpgToTextConverter() {
     const [imageSrc, setImageSrc] = useState(null);
     const [file, setFile] = useState(null);
+    const [lang1, setLang1] = useState('eng');
+    const [lang2, setLang2] = useState('');
     const [status, setStatus] = useState('idle'); // idle | loading | recognizing | done
     const [progress, setProgress] = useState(0);
     const [resultText, setResultText] = useState('');
@@ -11,6 +14,7 @@ export default function JpgToTextConverter() {
     const [error, setError] = useState('');
     const [copied, setCopied] = useState(false);
     const workerRef = useRef(null);
+    const workerLangsRef = useRef(null);
 
     useEffect(() => {
         return () => {
@@ -44,9 +48,14 @@ export default function JpgToTextConverter() {
         setCopied(false);
         setStatus('loading');
         setProgress(0);
+        const langs = lang2 ? `${lang1}+${lang2}` : lang1;
         try {
-            if (!workerRef.current) {
-                workerRef.current = await createWorker('eng', 1, {
+            if (!workerRef.current || workerLangsRef.current !== langs) {
+                if (workerRef.current) {
+                    await workerRef.current.terminate();
+                    workerRef.current = null;
+                }
+                workerRef.current = await createWorker(langs, 1, {
                     logger: (msg) => {
                         if (msg.status === 'recognizing text') {
                             setStatus('recognizing');
@@ -56,6 +65,7 @@ export default function JpgToTextConverter() {
                         }
                     }
                 });
+                workerLangsRef.current = langs;
             }
             const { data } = await workerRef.current.recognize(file);
             setResultText(data.text.trim());
@@ -97,11 +107,31 @@ export default function JpgToTextConverter() {
             <p className="tool-description">
                 Upload a JPG, PNG, or other image and extract any text it contains using real optical
                 character recognition (Tesseract OCR), running entirely in your browser via WebAssembly.
-                Your image is never uploaded to any server - only the one-time OCR engine itself
-                (a few MB) is fetched from a public CDN the first time you use this tool.
+                Your image is never uploaded to any server - only the OCR engine and the trained data
+                for whichever language(s) you pick below (a few MB each) are fetched from a public CDN,
+                once per language, the first time you use them. Supports about 100 languages - pick the
+                one that matches the text in your image (not "English" by default if your document isn't
+                in English, or recognition will produce garbled results).
             </p>
             <div className="tool-controls">
                 <input type="file" accept="image/*" onChange={handleFile} />
+                <label>
+                    Language:
+                    <select value={lang1} onChange={(e) => setLang1(e.target.value)} disabled={isBusy}>
+                        {OCR_LANGUAGES.map((l) => (
+                            <option key={l.code} value={l.code}>{l.name}</option>
+                        ))}
+                    </select>
+                </label>
+                <label>
+                    + Second language (optional):
+                    <select value={lang2} onChange={(e) => setLang2(e.target.value)} disabled={isBusy}>
+                        <option value="">None</option>
+                        {OCR_LANGUAGES.map((l) => (
+                            <option key={l.code} value={l.code} disabled={l.code === lang1}>{l.name}</option>
+                        ))}
+                    </select>
+                </label>
                 <button onClick={handleExtract} disabled={!file || isBusy}>
                     {isBusy ? 'Extracting...' : 'Extract text'}
                 </button>
@@ -110,7 +140,7 @@ export default function JpgToTextConverter() {
             {isBusy && (
                 <div style={{ margin: '12px 0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', marginBottom: 4 }}>
-                        <span>{status === 'loading' ? 'Loading OCR engine...' : 'Recognizing text...'}</span>
+                        <span>{status === 'loading' ? `Loading OCR engine (${lang2 ? `${lang1}+${lang2}` : lang1})...` : 'Recognizing text...'}</span>
                         <span>{progress}%</span>
                     </div>
                     <div style={{ height: 8, borderRadius: 4, background: 'var(--border)', overflow: 'hidden' }}>
