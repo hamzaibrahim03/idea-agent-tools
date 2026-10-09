@@ -367,6 +367,7 @@ import WallMaterialCalculator from './tools/WallMaterialCalculator.jsx';
 import WaterTankCalculator from './tools/WaterTankCalculator.jsx';
 import WindowDoorQuantityCalculator from './tools/WindowDoorQuantityCalculator.jsx';
 import WordCountByPage from './tools/WordCountByPage.jsx';
+import JpgToTextConverter from './tools/JpgToTextConverter.jsx';
 export const TOOLS = [
   {
     slug: 'json-formatter',
@@ -3472,6 +3473,15 @@ export const TOOLS = [
     seoDescription:
       'Free online Document Word Count & Page Estimator. Estimate printed page count from word count using standard words-per-page conventions. Runs entirely in your browser.',
     component: WordCountByPage
+  },
+  {
+    slug: 'jpg-to-text-converter',
+    category: 'documents',
+    name: 'JPG to Text Converter (OCR)',
+    description: 'Extract text from a JPG, PNG, or other image using real OCR that runs entirely in your browser via WebAssembly.',
+    seoDescription:
+      'Free online JPG to Text Converter (OCR). Extract text from a JPG, PNG, or other image using real optical character recognition that runs entirely in your browser via WebAssembly - no upload, no sign-up.',
+    component: JpgToTextConverter
   }
 ];
 export function getToolBySlug(slug) {
